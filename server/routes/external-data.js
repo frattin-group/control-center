@@ -9,7 +9,7 @@ router.get('/daily-expenses', async (req, res) => {
         const { date } = req.query;
 
         if (!date) {
-            return res.status(400).json({ error: 'Date parameter is required (YYYY-MM-DD)' });
+            return res.status(400).json({ error: 'Date parameter is required (AAAA-MM-GG)' });
         }
 
         // Parse date to start and end of day in UTC
