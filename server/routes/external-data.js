@@ -70,12 +70,15 @@ router.get('/daily-expenses', async (req, res) => {
             }
         });
 
-        const formattedExpenses = expenses.map(item => ({
-            cost: item.amount,
-            date: item.expense.date.toISOString().split('T')[0],
-            branch: item.branch?.name || null,
-            supplier: item.expense.supplier?.name || 'Unknown Supplier',
-            category: item.marketingChannel?.category?.name || item.sector?.name || 'Uncategorized'
+        const formattedExpenses = expenses.map(expense => ({
+            id: expense.expenseId, // ID of the parent expense
+            lineItemId: expense.id, // ID of the specific line item
+            date: expense.expense.date.toISOString().split('T')[0],
+            supplier: expense.expense.supplier.name,
+            amount: expense.amount,
+            description: expense.description || expense.expense.description,
+            category: expense.marketingChannel?.category?.name || 'Altro',
+            branch: expense.branch?.name || 'Sede non specificata'
         }));
 
         res.json(formattedExpenses);
