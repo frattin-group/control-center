@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Menu } from 'lucide-react';
-import { useUser, useClerk, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { useUser, useClerk, SignedIn, SignedOut, RedirectToSignIn, UserProfile } from '@clerk/clerk-react';
 import Sidebar from './components/Sidebar';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -71,8 +71,37 @@ export default function App() {
 
     if (!isLoaded) {
         return (
-            <div className="w-screen h-screen flex items-center justify-center">
-                <Spinner />
+            <div className="flex h-screen items-center justify-center bg-slate-50">
+                <Spinner size="large" />
+            </div>
+        );
+    }
+
+    // Force MFA Setup
+    if (isSignedIn && user && !user.twoFactorEnabled) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
+                <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+                    <div className="bg-rose-600 p-6 text-white text-center">
+                        <h1 className="text-2xl font-bold mb-2">Sicurezza Richiesta 🔒</h1>
+                        <p>Per accedere alla piattaforma è obbligatorio attivare l'autenticazione a due fattori (2FA).</p>
+                    </div>
+                    <div className="p-8 flex flex-col items-center">
+                        <p className="mb-6 text-slate-600 text-center max-w-lg">
+                            Vai nella sezione <strong>Sicurezza</strong> del tuo profilo qui sotto e attiva <strong>"Authenticator application"</strong>.
+                            <br />Una volta attivato, ricarica la pagina per accedere.
+                        </p>
+                        <div className="w-full flex justify-center">
+                            <UserProfile />
+                        </div>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="mt-8 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all"
+                        >
+                            Ho attivato la 2FA, fammi entrare!
+                        </button>
+                    </div>
+                </div>
             </div>
         );
     }
