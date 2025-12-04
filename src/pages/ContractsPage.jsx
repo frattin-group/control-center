@@ -29,7 +29,7 @@ import { getSectorColor } from '../constants/sectorColors';
 import { getTooltipContainerClass } from '../utils/chartTooltipStyles';
 import SortIndicatorIcon from '../components/SortIndicatorIcon';
 
-const storage = getStorage();
+
 
 const MONTH_NAMES_IT = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 const CONTRACT_ADVANCED_FILTERS = [

@@ -1151,7 +1151,7 @@ export default function ExpensesPage({
     }, [filterPresets]);
 
     // Caricamento dati da Firebase
-    const { getToken } = useAuth();
+
 
     // Caricamento dati da API
     useEffect(() => {
