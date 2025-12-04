@@ -1,16 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
-    collection,
-    query,
-    orderBy,
-    onSnapshot,
-    addDoc,
-    updateDoc,
-    doc,
-    deleteDoc,
-    serverTimestamp,
-} from 'firebase/firestore';
-import {
     Users,
     PlusCircle,
     Search,
@@ -32,7 +21,7 @@ import {
     ArrowUpDown,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { db } from '../firebase/config';
+import axios from 'axios';
 import Spinner from '../components/Spinner';
 import EmployeeFormModal from '../components/EmployeeFormModal';
 import EmptyState from '../components/EmptyState';
@@ -216,6 +205,8 @@ export default function EmployeesPage() {
     const [branches, setBranches] = useState([]);
     const [sectors, setSectors] = useState([]);
 
+    // ... (State variables remain same)
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBranchId, setSelectedBranchId] = useState('all');
     const [selectedSectorId, setSelectedSectorId] = useState('all');
@@ -256,50 +247,29 @@ export default function EmployeesPage() {
         }
     }, [filterPresets]);
 
-    useEffect(() => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
-        const employeesQuery = query(collection(db, 'employees'), orderBy('name'));
-        const unsubscribeEmployees = onSnapshot(
-            employeesQuery,
-            (snapshot) => {
-                const fetchedEmployees = snapshot.docs.map((item) => ({
-                    id: item.id,
-                    ...item.data(),
-                }));
-                setEmployees(fetchedEmployees.map(enhanceEmployee));
-                setIsLoading(false);
-            },
-            (error) => {
-                console.error('Errore durante il recupero dei dipendenti:', error);
-                toast.error('Impossibile caricare i dipendenti. Riprova più tardi.');
-                setIsLoading(false);
-            }
-        );
+        try {
+            const [employeesRes, branchesRes, sectorsRes] = await Promise.all([
+                axios.get('/api/employees'),
+                axios.get('/api/data/branches'),
+                axios.get('/api/data/sectors')
+            ]);
 
-        const branchesQuery = query(collection(db, 'branches'), orderBy('name'));
-        const unsubscribeBranches = onSnapshot(branchesQuery, (snapshot) => {
-            const fetchedBranches = snapshot.docs.map((item) => ({
-                id: item.id,
-                ...item.data(),
-            }));
-            setBranches(fetchedBranches);
-        });
-
-        const sectorsQuery = query(collection(db, 'sectors'), orderBy('name'));
-        const unsubscribeSectors = onSnapshot(sectorsQuery, (snapshot) => {
-            const fetchedSectors = snapshot.docs.map((item) => ({
-                id: item.id,
-                ...item.data(),
-            }));
-            setSectors(fetchedSectors);
-        });
-
-        return () => {
-            unsubscribeEmployees();
-            unsubscribeBranches();
-            unsubscribeSectors();
-        };
+            setEmployees(employeesRes.data.map(enhanceEmployee));
+            setBranches(branchesRes.data);
+            setSectors(sectorsRes.data);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            toast.error('Impossibile caricare i dati. Riprova più tardi.');
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     const branchMap = useMemo(() => new Map(branches.map((branch) => [branch.id, branch.name])), [branches]);
     const sectorMap = useMemo(() => new Map(sectors.map((sector) => [sector.id, sector.name])), [sectors]);
@@ -630,6 +600,7 @@ export default function EmployeesPage() {
             subtitle: `${headcount} dipendenti considerati`,
             icon: <PieChartIcon />,
             gradient: 'from-pink-500 via-rose-500 to-orange-400',
+            tooltip: `Totale dei costi del personale per l'anno ${selectedYearKey}.`,
         },
         {
             key: 'avg-monthly',
@@ -638,6 +609,7 @@ export default function EmployeesPage() {
             subtitle: `Media su 12 mesi • ${selectedYearKey}`,
             icon: <Wallet />,
             gradient: 'from-fuchsia-500 via-rose-500 to-pink-500',
+            tooltip: 'Media dei costi mensili del personale.',
         },
         {
             key: 'avg-employee',
@@ -646,6 +618,7 @@ export default function EmployeesPage() {
             subtitle: `${selectedYearKey} • annuale per risorsa`,
             icon: <TrendingUp />,
             gradient: 'from-rose-500 via-fuchsia-500 to-purple-500',
+            tooltip: 'Costo medio annuo per singola risorsa.',
         },
         {
             key: 'top-branch',
@@ -656,6 +629,7 @@ export default function EmployeesPage() {
                 : 'In attesa di dati',
             icon: <Building2 />,
             gradient: 'from-slate-800 via-slate-900 to-black',
+            tooltip: 'Filiale con il costo del personale più elevato.',
         },
     ];
 
@@ -677,19 +651,13 @@ export default function EmployeesPage() {
     const handleSaveEmployee = async (payload) => {
         try {
             if (editingEmployee) {
-                await updateDoc(doc(db, 'employees', editingEmployee.id), {
-                    ...payload,
-                    updatedAt: serverTimestamp(),
-                });
+                await axios.put(`/api/employees/${editingEmployee.id}`, payload);
                 toast.success('Dipendente aggiornato con successo.');
             } else {
-                await addDoc(collection(db, 'employees'), {
-                    ...payload,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                });
+                await axios.post('/api/employees', payload);
                 toast.success('Dipendente aggiunto con successo.');
             }
+            fetchData();
             closeModal();
         } catch (error) {
             console.error('Errore durante il salvataggio del dipendente:', error);
@@ -704,8 +672,9 @@ export default function EmployeesPage() {
         if (!confirmDelete) return;
 
         try {
-            await deleteDoc(doc(db, 'employees', employee.id));
+            await axios.delete(`/api/employees/${employee.id}`);
             toast.success('Dipendente eliminato.');
+            fetchData();
         } catch (error) {
             console.error('Errore durante l’eliminazione del dipendente:', error);
             toast.error('Impossibile eliminare il dipendente.');

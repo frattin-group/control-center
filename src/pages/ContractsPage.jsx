@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { db } from '../firebase/config';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { getStorage, ref, getDownloadURL, deleteObject } from "firebase/storage";
+import { useAuth } from '@clerk/clerk-react';
+import axios from 'axios';
+
 import {
     PlusCircle, Pencil, Trash2, Search, Layers, XCircle, FileSignature, Check,
     Paperclip, DollarSign, Calendar, Target, AlertTriangle, CheckCircle,
@@ -11,6 +12,7 @@ import ContractFormModal from '../components/ContractFormModal';
 import toast from 'react-hot-toast';
 import { KpiCard, MultiSelect } from '../components/SharedComponents';
 import { loadFilterPresets, persistFilterPresets } from '../utils/filterPresets';
+import { getDefaultDateFilter, filterExpensesByDateRange, PREDEFINED_DATE_PRESETS } from '../utils/dateFilters';
 import {
     ResponsiveContainer,
     AreaChart,
@@ -215,7 +217,7 @@ const ContractsTableView = ({
                                         : `${Math.round(totalPercentage)}%`
                                 )
                                 : 'N/D';
-                            const supplierDisplayName = contract.supplierName || supplierMap.get(contract.supplierld) || 'N/D';
+                            const supplierDisplayName = contract.supplierName || supplierMap.get(contract.supplierId) || 'N/D';
                             const sectorNames = (contract.effectiveSectors || []).map(id => sectorMap.get(id)).filter(Boolean).join(', ');
                             const residualDisplay = Math.abs(residualAmount) < 0.01 ? 0 : residualAmount;
 
@@ -345,7 +347,7 @@ const DateRangeFilter = ({
         });
     };
 
-    const dateRangeLabel = hasDateRange
+    const dateRangeLabel = (dateFilter.startDate && dateFilter.endDate)
         ? `${formatDateLabel(dateFilter.startDate)} → ${formatDateLabel(dateFilter.endDate)}`
         : 'Seleziona periodo';
 
@@ -570,6 +572,7 @@ const ContractsTableSection = ({
 
 // ===== MAIN COMPONENT =====
 export default function ContractsPage({ user }) {
+    const { getToken } = useAuth();
     const [allContracts, setAllContracts] = useState([]);
     const [allExpenses, setAllExpenses] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
@@ -585,7 +588,10 @@ export default function ContractsPage({ user }) {
     const [selectedSector, setSelectedSector] = useState('all');
     const [contractAdvancedFilter, setContractAdvancedFilter] = useState('');
     const [isAdvancedPanelOpen, setIsAdvancedPanelOpen] = useState(false);
-    const [dateFilter, setDateFilter] = useState({ startDate: '', endDate: '' }); // intervallo firma
+
+    // Memoize default date filter to compare against current state
+    const defaultDateFilter = useMemo(() => ({ startDate: '', endDate: '' }), []);
+    const [dateFilter, setDateFilter] = useState(defaultDateFilter);
     const otherPresetsRef = useRef([]);
     const [filterPresets, setFilterPresets] = useState(() => {
         const stored = loadFilterPresets() || [];
@@ -605,7 +611,12 @@ export default function ContractsPage({ user }) {
     const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = useState(false);
     const presetsMountedRef = useRef(false);
     const [sortConfig, setSortConfig] = useState({ key: 'supplier', direction: 'asc' });
-    const hasCustomDateRange = Boolean(dateFilter.startDate || dateFilter.endDate);
+
+    // Check if date filter is different from default
+    const hasCustomDateRange = Boolean(
+        dateFilter.startDate !== defaultDateFilter.startDate ||
+        dateFilter.endDate !== defaultDateFilter.endDate
+    );
 
     const supplierMap = useMemo(() => new Map(suppliers.map(s => [s.id, s.name])), [suppliers]);
     const sectorMap = useMemo(() => new Map(sectors.map(s => [s.id, s.name])), [sectors]);
@@ -613,33 +624,51 @@ export default function ContractsPage({ user }) {
         return [...branches].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }, [branches]);
 
-    useEffect(() => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
+        try {
+            const token = await getToken();
+            const headers = { 'Authorization': `Bearer ${token}` };
 
-        let contractsQuery = query(collection(db, "contracts"), orderBy("signingDate", "desc"));
+            const [contractsRes, expensesRes, initialDataRes] = await Promise.all([
+                axios.get('/api/contracts', { headers }),
+                axios.get('/api/expenses', { headers }),
+                axios.get(`/api/data/initial-data?year=${new Date().getFullYear()}`, { headers })
+            ]);
 
-        if (user.role === 'collaborator' && user.assignedChannels && user.assignedChannels.length > 0) {
-            if (user.assignedChannels.length <= 10) {
-                contractsQuery = query(
-                    collection(db, "contracts"),
-                    where("supplierld", "in", user.assignedChannels),
-                    orderBy("signingDate", "desc")
-                );
+            const contractsData = contractsRes.data;
+            const expensesData = expensesRes.data;
+            const initialData = initialDataRes.data;
+
+            console.log("Contracts API response:", contractsData);
+            console.log("Expenses API response length:", expensesData.length);
+            console.log("Initial Data response:", initialData);
+
+            // Filter contracts based on user role/assignments if needed
+            let filteredContracts = contractsData;
+            if (user.role === 'collaborator' && user.assignedChannels && user.assignedChannels.length > 0) {
+                if (user.assignedChannels.length <= 10) {
+                    filteredContracts = contractsData.filter(c => user.assignedChannels.includes(c.supplierId));
+                }
             }
-        }
+            console.log("Filtered contracts (after role check):", filteredContracts);
 
-        const unsubs = [
-            onSnapshot(contractsQuery, snap => setAllContracts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "expenses")), snap => setAllExpenses(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "channels"), orderBy("name")), snap => setSuppliers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "sectors"), orderBy("name")), snap => setSectors(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "branches"), orderBy("name")), snap => {
-                setBranches(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                setIsLoading(false);
-            })
-        ];
-        return () => unsubs.forEach(unsub => unsub());
+            setAllContracts(filteredContracts);
+            setAllExpenses(expensesData);
+            setSuppliers(initialData.suppliers);
+            setSectors(initialData.sectors);
+            setBranches(initialData.branches);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            toast.error("Errore nel caricamento dei dati");
+        } finally {
+            setIsLoading(false);
+        }
     }, [user]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     useEffect(() => {
         if (presetsMountedRef.current) {
@@ -699,19 +728,22 @@ export default function ContractsPage({ user }) {
                 return startA - startB;
             });
 
-            const distributeAmount = (amount, expenseDate, isUpToToday) => {
+            const distributeAmount = (amount, expenseDateRaw, isUpToToday) => {
                 if (!sortedLineItems.length || amount === 0) return;
-                const activeLineItems = expenseDate
+
+                // Robust date comparison using YYYY-MM-DD strings
+                const expenseDateStr = expenseDateRaw ? String(expenseDateRaw).slice(0, 10) : '';
+
+                const activeLineItems = expenseDateStr
                     ? sortedLineItems.filter(li => {
                         if (!li.startDate || !li.endDate) return false;
-                        const start = new Date(li.startDate);
-                        const end = new Date(li.endDate);
-                        start.setHours(0, 0, 0, 0);
-                        end.setHours(0, 0, 0, 0);
-                        return expenseDate >= start && expenseDate <= end;
+                        const startStr = String(li.startDate).slice(0, 10);
+                        const endStr = String(li.endDate).slice(0, 10);
+                        return expenseDateStr >= startStr && expenseDateStr <= endStr;
                     })
                     : [];
 
+                // If no active line items found, allocate to the first line item (Old App Logic)
                 if (activeLineItems.length === 0) {
                     allocateToLineItem(sortedLineItems[0]._normalizedId, amount, isUpToToday);
                     return;
@@ -731,29 +763,55 @@ export default function ContractsPage({ user }) {
                 });
             };
 
-            allExpenses.forEach(expense => {
+            // Use all expenses for calculation, do not filter by date range
+            // This matches the old app behavior where "Spent" includes everything
+            const filteredExpenses = allExpenses;
+
+            filteredExpenses.forEach(expense => {
                 const expenseLineItems = Array.isArray(expense.lineItems) ? expense.lineItems : [];
-                const expenseDate = expense.date ? new Date(`${expense.date}T00:00:00`) : null;
-                if (expenseDate) expenseDate.setHours(0, 0, 0, 0);
-                const isUpToToday = !expenseDate || expenseDate <= today;
+                // Parse date directly - it's already an ISO string from the API
+                const expenseDate = expense.date ? new Date(expense.date) : null;
+                if (expenseDate && !isNaN(expenseDate)) {
+                    expenseDate.setHours(0, 0, 0, 0);
+                }
+                const isUpToToday = !expenseDate || isNaN(expenseDate) || expenseDate <= today;
 
                 let handled = false;
                 expenseLineItems.forEach(item => {
-                    if (item.relatedContractId === contract.id) {
+                    // Check both contractId (Prisma) and relatedContractId (Legacy/Firestore)
+                    if ((item.contractId || item.relatedContractId) === contract.id) {
                         handled = true;
                         const amount = parseFloat(item.amount) || 0;
-                        const normalizedId = lineItemIdLookup.get(item.relatedLineItemId || item.relatedLineItemID);
+                        // Use contractLineItemId (from migration) or fallback to legacy fields
+                        let normalizedId = lineItemIdLookup.get(item.contractLineItemId || item.relatedLineItemId || item.relatedLineItemID);
+
+                        // SMART LINKING FALLBACK: Try to match by description if no ID link
+                        if (!normalizedId && item.description) {
+                            const cleanDesc = item.description.trim().toLowerCase();
+                            // Fuzzy match: check if line item description contains expense description words or vice versa
+                            // Or simpler: check if one contains the other
+                            const matchedLineItem = normalizedLineItems.find(li => {
+                                const liDesc = (li.description || '').trim().toLowerCase();
+                                return liDesc && (liDesc.includes(cleanDesc) || cleanDesc.includes(liDesc));
+                            });
+
+                            if (matchedLineItem) {
+                                normalizedId = matchedLineItem._normalizedId;
+                            }
+                        }
+
                         if (normalizedId) {
                             allocateToLineItem(normalizedId, amount, isUpToToday);
                         } else {
-                            distributeAmount(amount, expenseDate, isUpToToday);
+                            // Pass raw date strings for robust comparison
+                            distributeAmount(amount, expense.date, isUpToToday);
                         }
                     }
                 });
 
                 if (!handled && expense.relatedContractId === contract.id) {
                     const amount = parseFloat(expense.amount) || 0;
-                    distributeAmount(amount, expenseDate, isUpToToday);
+                    distributeAmount(amount, expense.date, isUpToToday);
                 }
             });
 
@@ -803,14 +861,14 @@ export default function ContractsPage({ user }) {
             const actualProgress = totalAmount > 0 ? (spentAmount / totalAmount) * 100 : (spentAmount > 0 ? Infinity : 0);
 
             let sectorsFromSource = [];
-            const lineItemSectors = [...new Set(cleanedLineItems.map(item => item.sectorld).filter(Boolean))];
+            const lineItemSectors = [...new Set(cleanedLineItems.map(item => item.sectorId).filter(Boolean))];
 
             if (lineItemSectors.length > 0) {
                 sectorsFromSource = lineItemSectors;
             } else if (contract.associatedSectors && contract.associatedSectors.length > 0) {
                 sectorsFromSource = contract.associatedSectors;
-            } else if (contract.sectorld) {
-                sectorsFromSource = [contract.sectorld];
+            } else if (contract.sectorId) {
+                sectorsFromSource = [contract.sectorId];
             }
 
             return {
@@ -830,7 +888,7 @@ export default function ContractsPage({ user }) {
             const lowerSearch = searchTerm.toLowerCase();
             filtered = filtered.filter(c =>
                 (c.description || '').toLowerCase().includes(lowerSearch) ||
-                (supplierMap.get(c.supplierld) || '').toLowerCase().includes(lowerSearch)
+                (supplierMap.get(c.supplierId) || '').toLowerCase().includes(lowerSearch)
             );
         }
 
@@ -854,8 +912,8 @@ export default function ContractsPage({ user }) {
 
         if (selectedBranch !== 'all') {
             filtered = filtered.filter(c => {
-                if (c.branchld && c.branchld === selectedBranch) return true;
-                return (c.lineItems || []).some(li => (li.branchld || li.branchId) === selectedBranch);
+                if (c.branchId && c.branchId === selectedBranch) return true;
+                return (c.lineItems || []).some(li => (li.branchId || li.branchId) === selectedBranch);
             });
         }
 
@@ -889,7 +947,7 @@ export default function ContractsPage({ user }) {
         const getSortValue = (contract, key) => {
             switch (key) {
                 case 'supplier':
-                    return contract.supplierName || supplierMap.get(contract.supplierld) || '';
+                    return contract.supplierName || supplierMap.get(contract.supplierId) || '';
                 case 'description':
                     return contract.description || '';
                 case 'sectors':
@@ -978,6 +1036,21 @@ export default function ContractsPage({ user }) {
     }, [presetName, searchTerm, dateFilter.startDate, dateFilter.endDate, selectedBranch, selectedSector, contractAdvancedFilter]);
 
     const applyPreset = useCallback((preset) => {
+        // Handle predefined presets (with getFilter function)
+        if (preset.isPredefined && preset.getFilter) {
+            const dateRange = preset.getFilter();
+            setDateFilter({
+                startDate: dateRange.startDate,
+                endDate: dateRange.endDate
+            });
+            // Use all expenses for calculation, do not filter by date range
+            // This matches the old app behavior where "Spent" includes everything
+            const filteredExpenses = allExpenses;
+            toast.success(`Filtro "${preset.name}" applicato`);
+            return;
+        }
+
+        // Handle custom saved presets
         setSearchTerm(preset.searchTerm || '');
         setDateFilter({
             startDate: preset.startDate ?? '',
@@ -1028,7 +1101,8 @@ export default function ContractsPage({ user }) {
                 value: contractStats.total.toString(),
                 subtitle: `${contractStats.active} attivi`,
                 icon: <FileSignature className="w-6 h-6" />,
-                gradient: 'from-blue-500 to-indigo-600'
+                gradient: 'from-blue-500 to-indigo-600',
+                tooltip: 'Numero totale di contratti monitorati.'
             },
             {
                 key: 'value',
@@ -1036,7 +1110,8 @@ export default function ContractsPage({ user }) {
                 value: formatCurrency(contractStats.totalValue),
                 subtitle: 'valore complessivo',
                 icon: <DollarSign className="w-6 h-6" />,
-                gradient: 'from-sky-500 to-cyan-500'
+                gradient: 'from-sky-500 to-cyan-500',
+                tooltip: 'Valore complessivo di tutti i contratti attivi.'
             },
             {
                 key: 'spent',
@@ -1044,7 +1119,8 @@ export default function ContractsPage({ user }) {
                 value: formatCurrency(contractStats.totalSpent),
                 subtitle: `+ Scaduto ${formatCurrency(contractStats.totalOverdue)}`,
                 icon: <Target className="w-6 h-6" />,
-                gradient: 'from-indigo-500 to-blue-700'
+                gradient: 'from-indigo-500 to-blue-700',
+                tooltip: 'Somma degli importi già spesi o scaduti.'
             },
             {
                 key: 'residual',
@@ -1052,7 +1128,8 @@ export default function ContractsPage({ user }) {
                 value: formatCurrency(contractStats.totalResidual),
                 subtitle: contractStats.overrun > 0 ? `${contractStats.overrun} sforati` : 'budget disponibile',
                 icon: <CheckCircle className="w-6 h-6" />,
-                gradient: contractStats.overrun > 0 ? 'from-rose-500 to-red-600' : 'from-emerald-500 to-green-600'
+                gradient: contractStats.overrun > 0 ? 'from-rose-500 to-red-600' : 'from-emerald-500 to-green-600',
+                tooltip: 'Budget residuo disponibile sui contratti.'
             }
         ];
     }, [contractStats]);
@@ -1202,32 +1279,50 @@ export default function ContractsPage({ user }) {
         const toastId = toast.loading(isEditing ? 'Aggiornamento...' : 'Salvataggio...');
         try {
             const { _key, ...cleanFormData } = formData;
-            const cleanLineItems = cleanFormData.lineItems.map(item => {
-                const { _key, ...rest } = item;
-                return { ...rest, totalAmount: parseFloat(String(rest.totalAmount).replace(',', '.')) || 0 };
-            });
-            const contractId = isEditing ? cleanFormData.id : doc(collection(db, 'contracts')).id;
+
+            // Upload file if present
             let fileURL = cleanFormData.contractPdfUrl || "";
             if (contractFile) {
-                const storageRef = ref(storage, `contracts/${contractId}/${contractFile.name}`);
-                await uploadBytes(storageRef, contractFile);
-                fileURL = await getDownloadURL(storageRef);
+                const formData = new FormData();
+                formData.append('file', contractFile);
+                const token = await getToken();
+                const uploadRes = await axios.post('/api/upload', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                fileURL = uploadRes.data.url;
             }
 
-            const dataToSave = { ...cleanFormData, lineItems: cleanLineItems, contractPdfUrl: fileURL, updatedAt: serverTimestamp() };
-            Object.keys(dataToSave).forEach(key => { if (dataToSave[key] === undefined) dataToSave[key] = null; });
-            (dataToSave.lineItems || []).forEach(item => Object.keys(item).forEach(key => { if (item[key] === undefined) item[key] = null; }));
+            const payload = {
+                ...cleanFormData,
+                supplierId: cleanFormData.supplierld || cleanFormData.supplierId, // Map back to API field
+                contractPdfUrl: fileURL,
+                amount: parseFloat(String(cleanFormData.totalAmount || 0).replace(',', '.')), // Ensure amount is float if needed
+                lineItems: cleanFormData.lineItems.map(item => ({
+                    ...item,
+                    totalAmount: parseFloat(String(item.totalAmount).replace(',', '.')) || 0,
+                    sectorId: item.sectorld || item.sectorId, // Map back to API field
+                    branchId: item.branchld || item.branchId      // Map back to API field
+                }))
+            };
+
+            const url = isEditing ? `/api/contracts/${formData.id}` : '/api/contracts';
+            const token = await getToken();
+            const headers = { 'Authorization': `Bearer ${token}` };
 
             if (isEditing) {
-                await updateDoc(doc(db, "contracts", contractId), dataToSave);
+                await axios.put(url, payload, { headers });
             } else {
-                dataToSave.authorld = user.uid;
-                dataToSave.authorName = user.name;
-                dataToSave.createdAt = serverTimestamp();
-                await setDoc(doc(db, "contracts", contractId), dataToSave);
+                await axios.post(url, payload, { headers });
             }
+
+
+
             toast.success(isEditing ? 'Contratto aggiornato!' : 'Contratto creato!', { id: toastId });
             handleCloseModal();
+            fetchData(); // Refresh data
         } catch (error) {
             console.error("Errore nel salvare il contratto:", error);
             toast.error(error.message || 'Errore imprevisto.', { id: toastId });
@@ -1242,8 +1337,16 @@ export default function ContractsPage({ user }) {
                 const fileRef = ref(storage, contract.contractPdfUrl);
                 await deleteObject(fileRef).catch(err => console.warn("File non trovato:", err));
             }
-            await deleteDoc(doc(db, "contracts", contract.id));
+
+            const token = await getToken();
+            await axios.delete(`/api/contracts/${contract.id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
             toast.success("Contratto eliminato!", { id: toastId });
+            fetchData(); // Refresh data
         } catch (error) {
             console.error("Errore durante l'eliminazione:", error);
             toast.error("Errore durante l'eliminazione.", { id: toastId });
@@ -1254,7 +1357,7 @@ export default function ContractsPage({ user }) {
         setSearchTerm('');
         setSelectedBranch('all');
         setSelectedSector('all');
-        setDateFilter({ startDate: '', endDate: '' });
+        setDateFilter({ startDate: '', endDate: '' }); // Reset to empty (all time)
         setContractAdvancedFilter('');
         setIsAdvancedPanelOpen(false);
         setIsFiltersPresetPanelOpen(false);
@@ -1268,8 +1371,7 @@ export default function ContractsPage({ user }) {
         trimmedSearchTerm ||
         selectedBranch !== 'all' ||
         selectedSector !== 'all' ||
-        dateFilter.startDate ||
-        dateFilter.endDate ||
+        hasCustomDateRange ||
         contractAdvancedFilter
     );
     const overrunContracts = processedContracts
@@ -1365,7 +1467,7 @@ export default function ContractsPage({ user }) {
                                                                         >
                                                                             <div className="flex flex-col">
                                                                                 <span className="text-xs font-semibold text-slate-700">
-                                                                                    {supplierMap.get(contract.supplierld) || 'N/D'}
+                                                                                    {supplierMap.get(contract.supplierId) || 'N/D'}
                                                                                 </span>
                                                                                 <span className="text-[11px] font-semibold text-rose-500">
                                                                                     +{(contract.progress - 100).toFixed(1)}%
@@ -1411,7 +1513,7 @@ export default function ContractsPage({ user }) {
                     </div>
                 </div>
                 {/* Sezione Filtri */}
-                <section className="relative z-20 rounded-3xl border border-white/80 bg-gradient-to-r from-slate-300/95 via-slate-100/90 to-white/90 px-4 py-5 shadow-[0_32px_72px_-38px_rgba(15,23,42,0.6)] backdrop-blur-2xl overflow-visible">
+                <section className="relative z-20 rounded-3xl border border-white/80 bg-gradient-to-r from-slate-300/95 via-slate-100/90 to-white/90 px-4 py-5 backdrop-blur-2xl overflow-visible">
                     <div className="pointer-events-none absolute inset-0">
                         <div className="absolute -top-16 left-12 h-32 w-32 rounded-full bg-indigo-100/35 blur-3xl" />
                         <div className="absolute -bottom-20 right-10 h-36 w-36 rounded-full bg-slate-200/55 blur-3xl" />
@@ -1634,15 +1736,32 @@ export default function ContractsPage({ user }) {
                             )}
                         </div>
                     </div>
+                    {/* Predefined Date Presets */}
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            Filtri rapidi
+                        </span>
+                        {PREDEFINED_DATE_PRESETS.map(preset => (
+                            <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => applyPreset(preset)}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm shadow-indigo-100/60 transition-all hover:border-indigo-300 hover:from-indigo-100 hover:to-purple-100 hover:shadow-md"
+                            >
+                                <Calendar className="h-3.5 w-3.5" />
+                                {preset.name}
+                            </button>
+                        ))}
+                    </div>
                     {filterPresets.length > 0 && (
-                        <div className="relative z-10 mt-2 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/70 bg-slate-50/85 px-4 py-3 shadow-inner shadow-slate-200/60 backdrop-blur">
+                        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                                 Preset rapidi
                             </span>
                             {filterPresets.map(preset => (
                                 <div
                                     key={preset.id}
-                                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm shadow-slate-100/60"
+                                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm shadow-slate-100/40"
                                 >
                                     <button
                                         type="button"
@@ -1664,11 +1783,13 @@ export default function ContractsPage({ user }) {
                     )}
                 </section>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
-                    {kpiCards.map(card => (
-                        <KpiCard key={card.key} {...card} />
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+                    {kpiCards.map(({ key, ...cardProps }) => (
+                        <KpiCard key={key} {...cardProps} />
                     ))}
                 </div>
+
+
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                     <section className="relative flex flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-[0_28px_60px_-36px_rgba(15,23,42,0.45)] backdrop-blur-2xl">

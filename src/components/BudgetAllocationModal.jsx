@@ -127,7 +127,9 @@ export default function BudgetAllocationModal({ isOpen, onClose, onSave, supplie
                         <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">Allocazioni Budget</h4>
                         <div className="space-y-4">
                             {allocations.map((alloc, index) => {
-                                const availableChannels = marketingChannels.filter(mc => supplier.offeredMarketingChannels?.includes(mc.id));
+                                const availableChannels = (supplier.offeredMarketingChannels && supplier.offeredMarketingChannels.length > 0)
+                                    ? marketingChannels.filter(mc => supplier.offeredMarketingChannels.includes(mc.id))
+                                    : marketingChannels;
                                 const filteredBranches = branches.filter(b => b.associatedSectors?.includes(alloc.sectorId));
                                 return (
                                     <div key={alloc._key} className={`relative p-4 rounded-xl border-2 space-y-3 transition-all ${alloc.isUnexpected ? 'bg-amber-50/70 border-amber-300' : 'bg-white border-2 border-gray-200'}`}>

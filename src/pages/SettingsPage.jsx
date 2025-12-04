@@ -1,8 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { db } from '../firebase/config';
-import { getApp } from 'firebase/app';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, orderBy, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import axios from 'axios';
 import { Users, Layers, Building2, RadioTower, Link2, PlusCircle, Search, ShoppingCart, Car, Sailboat, Caravan, DollarSign, Settings, Target, AlertCircle, CheckCircle } from 'lucide-react';
 import AssociationModal from '../components/AssociationModal';
 import UserPermissionsModal from '../components/UserPermissionsModal';
@@ -54,27 +51,24 @@ const TabButton = ({ tabKey, label, icon, activeTab, setActiveTab, count }) => {
             type="button"
             onClick={() => setActiveTab(tabKey)}
             aria-pressed={isActive}
-            className={`group relative flex items-center gap-3 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
-                isActive
-                    ? 'border-transparent bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 text-white shadow-[0_18px_40px_-28px_rgba(15,23,42,0.9)]'
-                    : 'border-white/60 bg-white/70 text-slate-600 hover:-translate-y-[1px] hover:border-indigo-200/80 hover:bg-white'
-            }`}
+            className={`group relative flex items-center gap-3 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${isActive
+                ? 'border-transparent bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 text-white shadow-[0_18px_40px_-28px_rgba(15,23,42,0.9)]'
+                : 'border-white/60 bg-white/70 text-slate-600 hover:-translate-y-[1px] hover:border-indigo-200/80 hover:bg-white'
+                }`}
         >
             <div
-                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border transition-all duration-300 ${
-                    isActive
-                        ? 'border-white/30 bg-white/20 text-white shadow-inner shadow-indigo-900/30'
-                        : 'border-slate-200 bg-white text-indigo-500 group-hover:border-indigo-200/70 group-hover:text-indigo-500'
-                }`}
+                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border transition-all duration-300 ${isActive
+                    ? 'border-white/30 bg-white/20 text-white shadow-inner shadow-indigo-900/30'
+                    : 'border-slate-200 bg-white text-indigo-500 group-hover:border-indigo-200/70 group-hover:text-indigo-500'
+                    }`}
             >
                 <Icon className="w-4 h-4" />
             </div>
             <span className="whitespace-nowrap">{label}</span>
             {typeof count === 'number' && (
                 <span
-                    className={`ml-1 inline-flex items-center justify-center rounded-xl px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] ${
-                        isActive ? 'bg-white/25 text-white' : 'bg-indigo-100 text-indigo-600'
-                    }`}
+                    className={`ml-1 inline-flex items-center justify-center rounded-xl px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] ${isActive ? 'bg-white/25 text-white' : 'bg-indigo-100 text-indigo-600'
+                        }`}
                 >
                     {count}
                 </span>
@@ -106,33 +100,56 @@ export default function SettingsPage({ user }) {
 
     const sectorMap = useMemo(() => new Map(sectors.map(s => [s.id, s.name])), [sectors]);
 
-    useEffect(() => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
-        const collectionsConfig = {
-            sectors: { setter: setSectors, collectionName: "sectors" },
-            branches: { setter: setBranches, collectionName: "branches" },
-            suppliers: { setter: setSuppliers, collectionName: "channels" },
-            marketingChannels: { setter: setMarketingChannels, collectionName: "marketing_channels" },
-            allUsers: { setter: setAllUsers, collectionName: "users" },
-            channelCategories: { setter: setChannelCategories, collectionName: "channel_categories" },
-        };
-        const unsubs = Object.values(collectionsConfig).map(({ setter, collectionName }) => 
-            onSnapshot(query(collection(db, collectionName), orderBy("name")), (snap) => {
-                setter(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            })
-        );
-        setTimeout(() => setLoading(false), 800);
-        return () => unsubs.forEach(unsub => unsub());
+        try {
+            const [
+                sectorsRes,
+                branchesRes,
+                suppliersRes,
+                channelsRes,
+                categoriesRes,
+                usersRes
+            ] = await Promise.all([
+                axios.get('/api/master-data/sectors'),
+                axios.get('/api/master-data/branches'),
+                axios.get('/api/suppliers'),
+                axios.get('/api/master-data/marketing-channels'),
+                axios.get('/api/master-data/channel-categories'),
+                axios.get('/api/users'),
+            ]);
+
+            setSectors(sectorsRes.data);
+            setBranches(branchesRes.data);
+            setSuppliers(suppliersRes.data);
+            setMarketingChannels(channelsRes.data);
+            setChannelCategories(categoriesRes.data);
+            setAllUsers(usersRes.data);
+        } catch (error) {
+            console.error("Error fetching settings data:", error);
+            toast.error("Errore caricamento dati.");
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
     useEffect(() => {
-        const q = query(collection(db, 'sector_budgets'), where('year', '==', budgetYear));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const budgets = new Map(snapshot.docs.map(doc => [doc.data().sectorId, doc.data()]));
-            setSectorBudgets(budgets);
-        });
-        return () => unsubscribe();
+        fetchData();
+    }, [fetchData]);
+
+    const fetchSectorBudgets = useCallback(async () => {
+        try {
+            const res = await axios.get(`/api/sector-budgets?year=${budgetYear}`);
+            const budgetsMap = new Map(res.data.map(b => [b.sectorId, { ...b, maxAmount: b.amount }]));
+            setSectorBudgets(budgetsMap);
+        } catch (error) {
+            console.error("Error fetching sector budgets:", error);
+        }
     }, [budgetYear]);
+
+    useEffect(() => {
+        fetchSectorBudgets();
+    }, [fetchSectorBudgets]);
 
     useEffect(() => {
         setAvailableBudgetYears(prev => {
@@ -185,20 +202,19 @@ export default function SettingsPage({ user }) {
             handleConfirmAddBudgetYear();
         }
     };
-    
+
     const handleOpenSectorBudgetModal = (sector) => setEditingSectorBudget(sector);
-    
+
     const handleSaveSectorBudget = async (sectorId, newAmount) => {
         const toastId = toast.loading("Salvataggio budget settore...");
         try {
-            const docId = `${sectorId}_${budgetYear}`;
-            const docRef = doc(db, 'sector_budgets', docId);
-            await setDoc(docRef, {
-                sectorId: sectorId,
+            await axios.post('/api/sector-budgets', {
+                sectorId,
                 year: budgetYear,
-                maxAmount: newAmount,
-            }, { merge: true });
+                maxAmount: newAmount
+            });
             toast.success("Budget del settore salvato!", { id: toastId });
+            fetchSectorBudgets();
             setEditingSectorBudget(null);
         } catch (error) {
             console.error("Errore salvataggio budget settore:", error);
@@ -210,8 +226,20 @@ export default function SettingsPage({ user }) {
         if (window.confirm("Sei sicuro di voler eliminare questo elemento? L'azione è irreversibile.")) {
             const toastId = toast.loading("Eliminazione in corso...");
             try {
-                await deleteDoc(doc(db, collectionName, id));
+                let endpoint = '';
+                switch (collectionName) {
+                    case 'sectors': endpoint = `/api/master-data/sectors/${id}`; break;
+                    case 'branches': endpoint = `/api/master-data/branches/${id}`; break;
+                    case 'channels': endpoint = `/api/suppliers/${id}`; break;
+                    case 'marketing_channels': endpoint = `/api/master-data/marketing-channels/${id}`; break;
+                    case 'channel_categories': endpoint = `/api/master-data/channel-categories/${id}`; break;
+                    case 'users': endpoint = `/api/users/${id}`; break;
+                    default: throw new Error('Unknown collection');
+                }
+
+                await axios.delete(`${endpoint}`);
                 toast.success("Elemento eliminato!", { id: toastId });
+                fetchData();
             } catch (error) {
                 console.error("Errore durante l'eliminazione:", error);
                 toast.error("Errore durante l'eliminazione.", { id: toastId });
@@ -227,14 +255,10 @@ export default function SettingsPage({ user }) {
         if (window.confirm("Sei sicuro di voler eliminare questo utente?")) {
             const toastId = toast.loading("Eliminazione utente...");
             try {
-                const functions = getFunctions(getApp(), 'europe-west1');
-                const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
-                const result = await deleteUserAccount({ uidToDelete: userIdToDelete });
-                if (result.data.status === 'success') {
-                    toast.success("Utente eliminato!", { id: toastId });
-                } else {
-                    throw new Error(result.data.message);
-                }
+                // Also delete from DB
+                await axios.delete(`/api/users/${userIdToDelete}`);
+                toast.success("Utente eliminato!", { id: toastId });
+                fetchData();
             } catch (error) {
                 toast.error(`Errore: ${error.message}`, { id: toastId });
             }
@@ -247,82 +271,78 @@ export default function SettingsPage({ user }) {
         const toastId = toast.loading("Salvataggio...");
         try {
             if (!formData.name?.trim()) throw new Error("Il nome è obbligatorio.");
-            if (isEditing) {
-                await updateDoc(doc(db, collectionName, data.id), formData);
-            } else {
-                await addDoc(collection(db, collectionName), { ...formData, createdAt: serverTimestamp() });
+
+            let endpoint = '';
+            let payload = { ...formData };
+
+            switch (collectionName) {
+                case 'sectors': endpoint = '/api/master-data/sectors'; break;
+                case 'branches': endpoint = '/api/master-data/branches'; break;
+                case 'channels': endpoint = '/api/suppliers'; break;
+                case 'marketing_channels': endpoint = '/api/master-data/marketing-channels'; break;
+                case 'channel_categories': endpoint = '/api/master-data/channel-categories'; break;
+                case 'users': endpoint = '/api/users'; break;
+                default: throw new Error('Unknown collection');
             }
-            toast.success("Salvato!", { id: toastId });
-            handleCloseModal();
-        } catch (error) {
-            toast.error(error.message, { id: toastId });
-        }
-    };
-    
-    const handleSaveSimple = async (collectionName, formData) => {
-        const { data } = modalState;
-        const isEditing = !!(data && data.id);
-        const toastId = toast.loading("Salvataggio...");
-        try {
-            if (!formData.name?.trim()) throw new Error("Il nome è obbligatorio.");
-            const dataToSave = { name: formData.name };
-            
+
             if (isEditing) {
-                await updateDoc(doc(db, collectionName, data.id), dataToSave);
+                await axios.put(`${endpoint}/${data.id}`, payload);
             } else {
-                await addDoc(collection(db, collectionName), { ...dataToSave, createdAt: serverTimestamp() });
+                await axios.post(`${endpoint}`, payload);
             }
+
             toast.success("Salvato!", { id: toastId });
+            fetchData();
             handleCloseModal();
         } catch (error) {
             toast.error(error.message, { id: toastId });
         }
     };
 
+    const handleSaveSimple = async (collectionName, formData) => {
+        // Reusing handleSave as logic is similar now
+        return handleSave(collectionName, formData);
+    };
+
     const handleSaveUserRole = async (userId, data) => {
-    const toastId = toast.loading("Aggiornamento...");
-    try {
-        // 1. Aggiorna Custom Claims tramite Cloud Function
-        const functions = getFunctions(getApp(), 'europe-west1');
-        const updateUserRole = httpsCallable(functions, 'updateUserRole');
-        const result = await updateUserRole({ 
-            uid: userId, 
-            newRole: data.role 
-        });
-        
-        if (result.data.status !== 'success') {
-            throw new Error(result.data.message || 'Errore aggiornamento ruolo');
-        }
-        
-        // 2. Aggiorna assignedChannels direttamente in Firestore
-        if (data.assignedChannels !== undefined) {
-            await updateDoc(doc(db, 'users', userId), { 
-                assignedChannels: data.assignedChannels 
+        const toastId = toast.loading("Aggiornamento...");
+        try {
+            await axios.put(`/api/users/${userId}`, {
+                role: data.role,
+                assignedChannels: data.assignedChannels
             });
+
+            toast.success("Ruolo aggiornato!", { id: toastId });
+            fetchData();
+        } catch (error) {
+            console.error("Errore aggiornamento ruolo:", error);
+            toast.error("Errore aggiornamento ruolo.", { id: toastId });
         }
-        
-        toast.success("Permessi aggiornati! L'utente deve fare logout/login.", { id: toastId, duration: 5000 });
-        handleCloseModal();
-    } catch (error) {
-        console.error("Errore aggiornamento permessi:", error);
-        toast.error(`Errore: ${error.message}`, { id: toastId });
-    }
-};
+    };
 
     const handleCreateUser = async (userData) => {
         const toastId = toast.loading("Creazione utente...");
         try {
-            const functions = getFunctions(getApp(), 'europe-west1');
-            const createUserAccount = httpsCallable(functions, 'createUserAccount');
-            const result = await createUserAccount(userData);
-            if (result.data.status === 'success') {
+            // Call Node.js backend to create user in Clerk and Neon
+            const response = await axios.post('/api/users/create-with-auth', {
+                email: userData.email,
+                password: userData.password, // Ensure password is passed from the form
+                name: userData.name,
+                role: userData.role,
+                assignedChannels: userData.assignedChannels
+            });
+
+            if (response.data.status === 'success') {
                 toast.success("Utente creato!", { id: toastId });
                 handleCloseModal();
+                fetchData();
             } else {
-                throw new Error(result.data.message);
+                throw new Error(response.data.error || 'Errore sconosciuto');
             }
         } catch (error) {
-            toast.error(`Errore: ${error.message}`, { id: toastId });
+            console.error("Errore creazione utente:", error);
+            const errorMessage = error.response?.data?.error || error.message;
+            toast.error(`Errore: ${errorMessage}`, { id: toastId });
         }
     };
 
@@ -332,9 +352,9 @@ export default function SettingsPage({ user }) {
         branches: { label: 'Filiali', icon: Building2, modalType: 'branch', collectionName: 'branches' },
         sectors: { label: 'Settori', icon: Layers, modalType: 'sector', collectionName: 'sectors' },
         marketing_channels: { label: 'Canali Marketing', icon: RadioTower, modalType: 'marketing_channel', collectionName: 'marketing_channels' },
-    channel_categories: { label: 'Categorie', icon: Link2, modalType: 'category', collectionName: 'channel_categories' },
-    users: { label: 'Utenti', icon: Users, modalType: 'user_permissions', addModalType: 'add_user', collectionName: 'users' },
-};
+        channel_categories: { label: 'Categorie', icon: Link2, modalType: 'category', collectionName: 'channel_categories' },
+        users: { label: 'Utenti', icon: Users, modalType: 'user_permissions', addModalType: 'add_user', collectionName: 'users' },
+    };
 
     const activeTabInfo = TABS[activeTab];
     const heroDescription = HERO_DESCRIPTIONS[activeTab] || HERO_DESCRIPTIONS.default;
@@ -399,13 +419,13 @@ export default function SettingsPage({ user }) {
                 </div>
             );
         }
-        
+
         const renderList = (items, collectionName, modalType, renderItemContent, variant = 'default') => (
             <ul className="space-y-3">
                 {filterItems(items).map(item => (
-                    <SettingsListItem 
-                        key={item.id} 
-                        onEdit={() => handleOpenModal(modalType, item)} 
+                    <SettingsListItem
+                        key={item.id}
+                        onEdit={() => handleOpenModal(modalType, item)}
                         onDelete={() => handleDelete(collectionName, item.id)}
                         variant={variant}
                     >
@@ -414,13 +434,13 @@ export default function SettingsPage({ user }) {
                 ))}
             </ul>
         );
-        
+
         const renderAssociationList = (items, collectionName, modalType, defaultIcon, variant = 'default') => {
             return renderList(items, collectionName, modalType, (item) => {
                 const primarySectorId = item.associatedSectors?.[0];
                 const primarySectorName = sectorMap.get(primarySectorId);
                 const associatedSectorNames = item.associatedSectors?.map(id => sectorMap.get(id)).filter(Boolean).join(', ');
-                
+
                 return (
                     <div className="flex items-center gap-3">
                         <div className={`${ICON_WRAPPER_BASE} flex-shrink-0`}>
@@ -444,14 +464,14 @@ export default function SettingsPage({ user }) {
                 return (
                     <div>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-                            <select 
-                                value={budgetYear} 
+                            <select
+                                value={budgetYear}
                                 onChange={e => {
                                     const value = parseInt(e.target.value, 10);
                                     if (!Number.isNaN(value)) {
                                         setBudgetYear(value);
                                     }
-                                }} 
+                                }}
                                 className="h-11 rounded-2xl border border-slate-200 bg-white/90 px-4 text-sm font-semibold text-slate-700 shadow-inner transition-all focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300/60"
                             >
                                 {budgetYearsOptions.map(year => (
@@ -603,6 +623,7 @@ export default function SettingsPage({ user }) {
             gradient: 'from-indigo-500 via-purple-500 to-indigo-600',
             subtitle: 'Anagrafica business unit',
             onClick: () => setActiveTab('sectors'),
+            tooltip: 'Gestione delle business unit e dei centri di costo.',
         },
         {
             key: 'suppliers',
@@ -612,6 +633,7 @@ export default function SettingsPage({ user }) {
             gradient: 'from-amber-500 via-orange-500 to-rose-500',
             subtitle: 'Catalogo partner e media',
             onClick: () => setActiveTab('suppliers'),
+            tooltip: 'Gestione dell\'anagrafica fornitori e partner.',
         },
         {
             key: 'branches',
@@ -621,6 +643,7 @@ export default function SettingsPage({ user }) {
             gradient: 'from-emerald-500 via-teal-500 to-cyan-500',
             subtitle: 'Punti vendita e sedi',
             onClick: () => setActiveTab('branches'),
+            tooltip: 'Gestione dei punti vendita e delle sedi operative.',
         },
         {
             key: 'users',
@@ -630,6 +653,7 @@ export default function SettingsPage({ user }) {
             gradient: 'from-blue-500 via-indigo-500 to-purple-500',
             subtitle: 'Ruoli e permessi',
             onClick: () => setActiveTab('users'),
+            tooltip: 'Gestione degli accessi e dei permessi della piattaforma.',
         },
     ];
 
@@ -785,63 +809,63 @@ export default function SettingsPage({ user }) {
             {modalState.isOpen && (
                 <>
                     {modalState.type === 'supplier' && (
-                        <AssociationModal 
-                            isOpen={modalState.isOpen} 
-                            onClose={handleCloseModal} 
-                            onSave={(data) => handleSave('channels', data)} 
-                            initialData={modalState.data} 
-                            title={modalState.data ? 'Modifica Fornitore' : 'Nuovo Fornitore'} 
-                            itemLabel="Nome Fornitore" 
+                        <AssociationModal
+                            isOpen={modalState.isOpen}
+                            onClose={handleCloseModal}
+                            onSave={(data) => handleSave('channels', data)}
+                            initialData={modalState.data}
+                            title={modalState.data ? 'Modifica Fornitore' : 'Nuovo Fornitore'}
+                            itemLabel="Nome Fornitore"
                             associationLists={[
-                                { key: 'associatedSectors', label: 'Settori di Competenza', items: sectors }, 
+                                { key: 'associatedSectors', label: 'Settori di Competenza', items: sectors },
                                 { key: 'offeredMarketingChannels', label: 'Canali di Marketing Offerti', items: marketingChannels }
-                            ]} 
+                            ]}
                         />
                     )}
                     {modalState.type === 'branch' && (
-                        <AssociationModal 
-                            isOpen={modalState.isOpen} 
-                            onClose={handleCloseModal} 
-                            onSave={(data) => handleSave('branches', data)} 
-                            initialData={modalState.data} 
-                            title={modalState.data ? 'Modifica Filiale' : 'Nuova Filiale'} 
-                            itemLabel="Nome Filiale" 
+                        <AssociationModal
+                            isOpen={modalState.isOpen}
+                            onClose={handleCloseModal}
+                            onSave={(data) => handleSave('branches', data)}
+                            initialData={modalState.data}
+                            title={modalState.data ? 'Modifica Filiale' : 'Nuova Filiale'}
+                            itemLabel="Nome Filiale"
                             associationLists={[
                                 { key: 'associatedSectors', label: 'Settori di Competenza', items: sectors }
-                            ]} 
+                            ]}
                         />
                     )}
                     {(modalState.type === 'sector' || modalState.type === 'category') && (
-                        <SimpleAddModal 
-                            isOpen={modalState.isOpen} 
-                            onClose={handleCloseModal} 
-                            onSave={(data) => handleSaveSimple(modalState.type === 'sector' ? 'sectors' : 'channel_categories', data)} 
-                            initialData={modalState.data} 
-                            type={modalState.type} 
+                        <SimpleAddModal
+                            isOpen={modalState.isOpen}
+                            onClose={handleCloseModal}
+                            onSave={(data) => handleSaveSimple(modalState.type === 'sector' ? 'sectors' : 'channel_categories', data)}
+                            initialData={modalState.data}
+                            type={modalState.type}
                         />
                     )}
                     {modalState.type === 'marketing_channel' && (
-                        <MarketingChannelModal 
-                            isOpen={modalState.isOpen} 
-                            onClose={handleCloseModal} 
-                            onSave={(data) => handleSave('marketing_channels', data)} 
-                            initialData={modalState.data} 
-                            categories={channelCategories} 
+                        <MarketingChannelModal
+                            isOpen={modalState.isOpen}
+                            onClose={handleCloseModal}
+                            onSave={(data) => handleSave('marketing_channels', data)}
+                            initialData={modalState.data}
+                            categories={channelCategories}
                         />
                     )}
                     {modalState.type === 'user_permissions' && (
-                        <UserPermissionsModal 
-                            isOpen={modalState.isOpen} 
-                            onClose={handleCloseModal} 
-                            onSave={handleSaveUserRole} 
-                            userData={modalState.data} 
+                        <UserPermissionsModal
+                            isOpen={modalState.isOpen}
+                            onClose={handleCloseModal}
+                            onSave={handleSaveUserRole}
+                            userData={modalState.data}
                         />
                     )}
                     {modalState.type === 'add_user' && (
-                        <AddUserModal 
-                            isOpen={modalState.isOpen} 
-                            onClose={handleCloseModal} 
-                            onSave={handleCreateUser} 
+                        <AddUserModal
+                            isOpen={modalState.isOpen}
+                            onClose={handleCloseModal}
+                            onSave={handleCreateUser}
                         />
                     )}
                 </>

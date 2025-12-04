@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot, doc, writeBatch, serverTimestamp, getDocs } from 'firebase/firestore';
+import { useAuth } from '@clerk/clerk-react';
+import axios from 'axios';
 import {
     X,
     XCircle,
@@ -42,59 +42,20 @@ import {
 } from 'recharts';
 import { getSectorColor } from '../constants/sectorColors';
 import BudgetAllocationModal from '../components/BudgetAllocationModal';
-import { KpiCard } from '../components/SharedComponents';
+import {
+    KpiCard,
+    MultiSelect,
+    InfoTooltip
+} from '../components/SharedComponents';
 import { loadFilterPresets, persistFilterPresets } from '../utils/filterPresets';
 import { DEFAULT_COST_DOMAIN } from '../constants/costDomains';
 import { getTooltipContainerClass } from '../utils/chartTooltipStyles';
 import SortIndicatorIcon from '../components/SortIndicatorIcon';
 
-const InfoTooltip = ({ message }) => {
-    const [open, setOpen] = useState(false);
-    const containerRef = useRef(null);
 
-    useEffect(() => {
-        if (!open) return;
-        const handleClickOutside = (event) => {
-            if (containerRef.current && !containerRef.current.contains(event.target)) {
-                setOpen(false);
-            }
-        };
-        window.addEventListener('mousedown', handleClickOutside);
-        window.addEventListener('touchstart', handleClickOutside);
-        return () => {
-            window.removeEventListener('mousedown', handleClickOutside);
-            window.removeEventListener('touchstart', handleClickOutside);
-        };
-    }, [open]);
-
-    const handleToggle = (event) => {
-        event.stopPropagation();
-        setOpen(prev => !prev);
-    };
-
-    return (
-        <span ref={containerRef} className="relative inline-flex">
-            <button
-                type="button"
-                onClick={handleToggle}
-                className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-            >
-                <HelpCircle className="w-3.5 h-3.5" />
-            </button>
-            {open && (
-                <div
-                    role="tooltip"
-                    className="absolute left-1/2 top-full z-30 mt-2 w-max max-w-[240px] -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-3 text-xs font-semibold text-white shadow-xl shadow-slate-900/25"
-                    onClick={(event) => event.stopPropagation()}
-                >
-                    {message}
-                </div>
-            )}
-        </span>
-    );
-};
 
 const formatCurrency = (value) => {
+    // Force HMR update
     if (typeof value !== 'number' || Number.isNaN(value)) return '€ 0,00';
     return value.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 };
@@ -311,6 +272,7 @@ const SupplierTableView = React.memo(({
 
 
 export default function BudgetPage() {
+    const { getToken } = useAuth();
     const [year, setYear] = useState(() => new Date().getFullYear());
     const [startDate, setStartDate] = useState(() => {
         const currentYear = new Date().getFullYear();
@@ -335,7 +297,7 @@ export default function BudgetPage() {
     const [selectedBranch, setSelectedBranch] = useState('all');
     const [searchTerm, setSearchTerm] = useState("");
     const showProjections = true;
-    const [sortConfig, setSortConfig] = useState({ key: 'spend', direction: 'desc' });
+    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
     const [filterPresets, setFilterPresets] = useState(() =>
         loadFilterPresets().map(preset => {
             const {
@@ -416,43 +378,197 @@ export default function BudgetPage() {
         }
     }, [endDate, year]);
 
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    // Fetch Data
     useEffect(() => {
-        setIsLoading(true);
-        let staticDataLoaded = 0;
-        const onStaticDataLoad = () => {
-            staticDataLoaded++;
-            if (staticDataLoaded >= 2) setIsLoading(false);
-        };
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const token = await getToken();
+                const headers = { Authorization: `Bearer ${token}` };
 
-        const unsubSummaries = onSnapshot(query(collection(db, "budget_summaries"), where("year", "==", year)), snap => setSummaries(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
-        const unsubContracts = onSnapshot(query(collection(db, "contracts")), snap => setContracts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
-        const unsubExpenses = onSnapshot(query(collection(db, "expenses")), snap => setAllExpenses(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))); // NUOVO
-        const unsubSectors = onSnapshot(query(collection(db, "sectors")), snap => { setSectors(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))); onStaticDataLoad(); });
-        const unsubSuppliers = onSnapshot(
-            query(collection(db, "channels")),
-            snap => {
-                const orderedSuppliers = snap.docs
-                    .map(doc => ({ id: doc.id, ...doc.data() }))
-                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-                setSuppliers(orderedSuppliers);
-                onStaticDataLoad();
+                const [initialDataRes, expensesRes] = await Promise.all([
+                    axios.get(`/api/data/initial-data?year=${year}`, { headers }),
+                    axios.get('/api/expenses', { headers })
+                ]);
+
+                const initialData = initialDataRes.data;
+                const expensesData = expensesRes.data;
+
+                setSectors(initialData.sectors);
+                setBranches(initialData.branches);
+                setSuppliers(initialData.suppliers);
+                setMarketingChannels(initialData.marketingChannels);
+                setContracts(initialData.contracts);
+                setSectorBudgets(initialData.sectorBudgets);
+                setAllExpenses(expensesData);
+
+                // Transform Budgets to Summaries
+                const rawBudgets = initialData.budgets || [];
+
+                // Get all unique supplier IDs from budgets and expenses
+                const budgetSupplierIds = new Set(rawBudgets.map(b => b.supplierId));
+                const expenseSupplierIds = new Set(expensesData
+                    .filter(e => {
+                        if ((e.costDomain || DEFAULT_COST_DOMAIN) !== DEFAULT_COST_DOMAIN) return false;
+                        if (e.isAmortized && e.amortizationStartDate && e.amortizationEndDate) {
+                            const start = new Date(e.amortizationStartDate).getFullYear();
+                            const end = new Date(e.amortizationEndDate).getFullYear();
+                            return year >= start && year <= end;
+                        }
+                        return new Date(e.date).getFullYear() === year;
+                    })
+                    .map(e => e.supplierId)
+                );
+
+                const allSupplierIds = new Set([...budgetSupplierIds, ...expenseSupplierIds]);
+
+                const transformedSummaries = Array.from(allSupplierIds).map(supplierId => {
+                    const budget = rawBudgets.find(b => b.supplierId === supplierId) || { allocations: [] };
+                    const allocations = budget.allocations || [];
+                    const totalBudget = allocations.reduce((sum, a) => sum + (a.budgetAmount || 0), 0);
+
+                    // Calculate spend for this supplier with amortization logic
+                    const supplierExpenses = expensesData.filter(e =>
+                        e.supplierId === supplierId &&
+                        (e.costDomain || DEFAULT_COST_DOMAIN) === DEFAULT_COST_DOMAIN
+                    );
+
+                    const getExpenseAmountInYear = (expense, itemAmount) => {
+                        const amount = parseFloat(itemAmount) || 0;
+                        if (amount === 0) return 0;
+
+                        if (expense.isAmortized && expense.amortizationStartDate && expense.amortizationEndDate) {
+                            const startDate = new Date(expense.amortizationStartDate);
+                            const endDate = new Date(expense.amortizationEndDate);
+                            // Normalize to start of day
+                            startDate.setHours(0, 0, 0, 0);
+                            endDate.setHours(0, 0, 0, 0);
+
+                            const yearStart = new Date(year, 0, 1);
+                            const yearEnd = new Date(year, 11, 31);
+                            yearEnd.setHours(23, 59, 59, 999);
+
+                            // Check overlap
+                            if (startDate > yearEnd || endDate < yearStart) return 0;
+
+                            const overlapStart = new Date(Math.max(startDate.getTime(), yearStart.getTime()));
+                            const overlapEnd = new Date(Math.min(endDate.getTime(), yearEnd.getTime()));
+
+                            // Normalize overlap end to start of day for day counting, or handle time consistently
+                            // Let's use the same logic as Dashboard: day-by-day iteration or math
+                            // Dashboard uses: durationDays = (endDate - startDate) / dayMs + 1
+
+                            const dayMs = 1000 * 60 * 60 * 24;
+                            const durationDays = Math.max(1, Math.round((endDate - startDate) / dayMs) + 1);
+                            const dailyAmount = amount / durationDays;
+
+                            // Calculate overlap days
+                            // Ensure we compare dates at same time (e.g. noon) or use round
+                            const oStart = new Date(overlapStart); oStart.setHours(0, 0, 0, 0);
+                            const oEnd = new Date(overlapEnd); oEnd.setHours(0, 0, 0, 0);
+
+                            if (oStart > oEnd) return 0;
+
+                            const overlapDays = Math.round((oEnd - oStart) / dayMs) + 1;
+                            return dailyAmount * overlapDays;
+                        } else {
+                            // Not amortized: check invoice date
+                            const expenseDate = new Date(expense.date);
+                            return expenseDate.getFullYear() === year ? amount : 0;
+                        }
+                    };
+
+                    const totalSpend = supplierExpenses.reduce((sum, e) => {
+                        const lineItems = e.lineItems || [];
+                        if (lineItems.length > 0) {
+                            return sum + lineItems.reduce((acc, li) => acc + getExpenseAmountInYear(e, li.amount), 0);
+                        }
+                        return sum + getExpenseAmountInYear(e, e.amount || e.totalAmount);
+                    }, 0);
+
+                    // Calculate detailed spend per allocation
+                    const claimedLineItemIds = new Set();
+
+                    // Calculate detailed spend per allocation
+                    const details = allocations.map(allocation => {
+                        let detailedSpend = 0;
+                        supplierExpenses.forEach(expense => {
+                            expense.lineItems.forEach(li => {
+                                const matchesSector = !allocation.sectorId || li.sectorId === allocation.sectorId;
+                                const matchesBranch = !allocation.branchId || li.branchId === allocation.branchId;
+                                const matchesChannel = !allocation.marketingChannelId || li.marketingChannelId === allocation.marketingChannelId;
+
+                                if (matchesSector && matchesBranch && matchesChannel) {
+                                    const amountInYear = getExpenseAmountInYear(expense, li.amount);
+                                    if (amountInYear > 0) {
+                                        detailedSpend += amountInYear;
+                                        if (li.id) claimedLineItemIds.add(li.id);
+                                    }
+                                }
+                            });
+                        });
+
+                        return {
+                            ...allocation,
+                            detailedSpend
+                        };
+                    });
+
+                    // Identify unallocated spend (expenses not matching any allocation)
+                    const sectorSpendMap = new Map();
+                    supplierExpenses.forEach(expense => {
+                        expense.lineItems.forEach(li => {
+                            // If line item has an ID, check if it was claimed. 
+                            if (li.sectorId && (!li.id || !claimedLineItemIds.has(li.id))) {
+                                const amountInYear = getExpenseAmountInYear(expense, li.amount);
+                                if (amountInYear > 0) {
+                                    sectorSpendMap.set(li.sectorId, (sectorSpendMap.get(li.sectorId) || 0) + amountInYear);
+                                }
+                            }
+                        });
+                    });
+
+                    sectorSpendMap.forEach((amount, sectorId) => {
+                        details.push({
+                            id: `virtual-${supplierId}-${sectorId}-${Math.random().toString(36).substr(2, 9)}`,
+                            sectorId: sectorId,
+                            budgetAmount: 0,
+                            detailedSpend: amount,
+                            isVirtual: true
+                        });
+                    });
+
+                    return {
+                        id: budget.id || `temp-${supplierId}`,
+                        supplierId: supplierId,
+                        year: year,
+                        totalBudget,
+                        totalSpend,
+                        details
+                    };
+                });
+
+                console.log("Debug Data:", {
+                    budgetsCount: rawBudgets.length,
+                    expensesCount: expensesData.length,
+                    summariesCount: transformedSummaries.length,
+                    sampleSummary: transformedSummaries[0]
+                });
+
+                setSummaries(transformedSummaries);
+
+            } catch (error) {
+                console.error("Error fetching budget data:", error);
+                toast.error("Errore nel caricamento dei dati");
+            } finally {
+                setIsLoading(false);
             }
-        );
-        const unsubBranches = onSnapshot(collection(db, "branches"), snap => setBranches(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
-        const unsubMarketingChannels = onSnapshot(collection(db, "marketing_channels"), snap => setMarketingChannels(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
-        const unsubSectorBudgets = onSnapshot(query(collection(db, "sector_budgets"), where("year", "==", year)), snap => setSectorBudgets(snap.docs.map(doc => doc.data())));
-
-        return () => {
-            unsubSummaries();
-            unsubContracts();
-            unsubExpenses(); // NUOVO
-            unsubSuppliers();
-            unsubSectors();
-            unsubBranches();
-            unsubMarketingChannels();
-            unsubSectorBudgets();
         };
-    }, [year]);
+
+        fetchData();
+    }, [year, getToken, refreshTrigger]);
 
     // LOGICA CORRETTA: Calcolo proiezioni come nella Dashboard
     const contractProjections = useMemo(() => {
@@ -490,120 +606,219 @@ export default function BudgetPage() {
             return parsed;
         };
 
-        const contractSpentMap = new Map();
+        // Pre-process contract line items (same as Dashboard)
+        const contractLineItemsMeta = new Map();
+        contracts.forEach(contract => {
+            const contractSupplierId = contract.supplierId || contract.supplierld; // Contract-level supplier
+            const normalizedLineItems = (contract.lineItems || [])
+                .map(lineItem => {
+                    const lineItemId = lineItem.id || lineItem.lineItemId || lineItem._key || null;
+                    if (!lineItemId) return null;
+                    const total = parseFloat(lineItem.totalAmount) || 0;
+                    const startDate = normalizeDate(lineItem.startDate);
+                    const endDate = normalizeDate(lineItem.endDate);
+                    return {
+                        ...lineItem,
+                        lineItemId,
+                        total,
+                        startDate,
+                        endDate,
+                        // Use line item supplier if present, otherwise fall back to contract supplier
+                        supplierId: lineItem.supplierId || lineItem.supplierld || contractSupplierId,
+                        sectorId: lineItem.sectorId || lineItem.sectorld
+                    };
+                })
+                .filter(Boolean)
+                .sort((a, b) => {
+                    const startA = a.startDate ? a.startDate.getTime() : 0;
+                    const startB = b.startDate ? b.startDate.getTime() : 0;
+                    return startA - startB;
+                });
+            contractLineItemsMeta.set(contract.id, normalizedLineItems);
+        });
+
+        // Track spend (same approach as Dashboard)
         const lineItemSpentTotal = new Map();
-        const lineItemSpentUpToToday = new Map();
-        const fallbackContractSpent = new Map();
-        const fallbackContractSpentUpToToday = new Map();
+        const lineItemSpentLifetime = new Map(); // Key addition: lifetime spend
+        const lineItemSpentInFilter = new Map(); // Spend in filter period (past + future)
+        const lineItemSpentInFilterUpToToday = new Map();
 
+        const addSpendToMaps = (contractId, lineItemId, amount, referenceDate) => {
+            if (!contractId || !lineItemId || !amount) return;
+            const key = `${contractId}|${lineItemId}`;
+            lineItemSpentTotal.set(key, (lineItemSpentTotal.get(key) || 0) + amount);
+
+            const date = normalizeDate(referenceDate);
+            if (!date) return;
+
+            // Lifetime: everything up to today
+            if (date <= today) {
+                lineItemSpentLifetime.set(key, (lineItemSpentLifetime.get(key) || 0) + amount);
+            }
+
+            // In-filter: everything in the filter period
+            if (date >= filterStartDate && date <= filterEndDate) {
+                lineItemSpentInFilter.set(key, (lineItemSpentInFilter.get(key) || 0) + amount);
+
+                // In-filter up to today
+                if (date <= today) {
+                    lineItemSpentInFilterUpToToday.set(key, (lineItemSpentInFilterUpToToday.get(key) || 0) + amount);
+                }
+            }
+        };
+
+        const allocateAmountToLineItems = (contractId, amount, referenceDate) => {
+            if (!contractId || !amount) return;
+            const lineItems = contractLineItemsMeta.get(contractId);
+            if (!lineItems || lineItems.length === 0) return;
+
+            const date = normalizeDate(referenceDate);
+            let targets = lineItems;
+            if (date) {
+                // Robust date comparison using YYYY-MM-DD strings
+                const dateStr = date.toISOString().slice(0, 10);
+                const active = lineItems.filter(li => {
+                    if (!li.startDate || !li.endDate) return false;
+                    const startStr = li.startDate.toISOString().slice(0, 10);
+                    const endStr = li.endDate.toISOString().slice(0, 10);
+                    return dateStr >= startStr && dateStr <= endStr;
+                });
+                if (active.length > 0) targets = active;
+            }
+
+            const totalActive = targets.reduce((sum, li) => sum + (li.total || 0), 0);
+            targets.forEach(li => {
+                const proportion = totalActive > 0 ? (li.total || 0) / totalActive : 1 / targets.length;
+                const share = amount * proportion;
+                addSpendToMaps(contractId, li.lineItemId, share, referenceDate);
+            });
+        };
+
+        // Process expenses (same as Dashboard)
         marketingExpenses.forEach(expense => {
-            const expenseDate = normalizeDate(expense.date);
-            (expense.lineItems || []).forEach(item => {
-                if (item.relatedContractId) {
-                    const currentSpent = contractSpentMap.get(item.relatedContractId) || 0;
-                    const amount = parseFloat(item.amount) || 0;
-                    contractSpentMap.set(item.relatedContractId, currentSpent + amount);
+            const lineItems = expense.lineItems || [];
+            if (lineItems.length > 0) {
+                lineItems.forEach(item => {
+                    const contractId = item.contractId || item.relatedContractId || expense.relatedContractId;
+                    if (!contractId) return;
 
-                    const lineItemId = item.relatedLineItemId || item.lineItemId || item._key || null;
-                    if (lineItemId) {
-                        lineItemSpentTotal.set(lineItemId, (lineItemSpentTotal.get(lineItemId) || 0) + amount);
-                        if (expenseDate && expenseDate <= today) {
-                            lineItemSpentUpToToday.set(lineItemId, (lineItemSpentUpToToday.get(lineItemId) || 0) + amount);
-                        }
-                    } else {
-                        fallbackContractSpent.set(item.relatedContractId, (fallbackContractSpent.get(item.relatedContractId) || 0) + amount);
-                        if (expenseDate && expenseDate <= today) {
-                            fallbackContractSpentUpToToday.set(item.relatedContractId, (fallbackContractSpentUpToToday.get(item.relatedContractId) || 0) + amount);
+                    const amount = parseFloat(item.amount) || 0;
+                    if (amount === 0) return;
+
+                    // Try to find target line item
+                    let targetLineItemId = item.relatedLineItemId;
+
+                    // SMART LINKING FALLBACK
+                    if (!targetLineItemId && contractId && item.description) {
+                        const contractItems = contractLineItemsMeta.get(contractId);
+                        if (contractItems) {
+                            const cleanDesc = item.description.trim().toLowerCase();
+                            const matched = contractItems.find(li => {
+                                const liDesc = (li.description || '').trim().toLowerCase();
+                                return liDesc && (liDesc.includes(cleanDesc) || cleanDesc.includes(liDesc));
+                            });
+                            if (matched) {
+                                targetLineItemId = matched.lineItemId;
+                            }
                         }
                     }
-                }
-            });
-            if (expense.relatedContractId) {
-                const amount = parseFloat(expense.amount) || 0;
-                const currentSpent = contractSpentMap.get(expense.relatedContractId) || 0;
-                contractSpentMap.set(expense.relatedContractId, currentSpent + amount);
-                fallbackContractSpent.set(expense.relatedContractId, (fallbackContractSpent.get(expense.relatedContractId) || 0) + amount);
-                if (expenseDate && expenseDate <= today) {
-                    fallbackContractSpentUpToToday.set(expense.relatedContractId, (fallbackContractSpentUpToToday.get(expense.relatedContractId) || 0) + amount);
+
+                    if (targetLineItemId) {
+                        addSpendToMaps(contractId, targetLineItemId, amount, expense.date);
+                    } else {
+                        allocateAmountToLineItems(contractId, amount, expense.date);
+                    }
+                });
+            }
+
+            // Fallback for expense-level link if no line items or they didn't cover it
+            if (expense.relatedContractId && lineItems.length === 0) {
+                const amount = parseFloat(expense.amount) || parseFloat(expense.totalAmount) || 0;
+                if (amount !== 0) {
+                    allocateAmountToLineItems(expense.relatedContractId, amount, expense.date);
                 }
             }
         });
 
+        // Calculate projections (Dashboard's logic)
         const futureBySupplierId = {};
         const futureBySectorId = {};
         const overdueBySupplierId = {};
+        const overdueInFilterBySupplierId = {};
 
         contracts.forEach(contract => {
-            const totalContractValue = (contract.lineItems || []).reduce((sum, li) => sum + (parseFloat(li.totalAmount) || 0), 0);
-            const totalSpentOnContract = contractSpentMap.get(contract.id) || 0;
-            const remainingContractValue = Math.max(0, totalContractValue - totalSpentOnContract);
+            const lineItems = contractLineItemsMeta.get(contract.id) || [];
 
-            if (remainingContractValue <= 0) return;
+            lineItems.forEach(lineItem => {
+                const { lineItemId, total, startDate, endDate, supplierId, sectorId } = lineItem;
 
-            const supplierFallback = contract.supplierId || contract.supplierld;
-            const contractFallbackTotal = fallbackContractSpent.get(contract.id) || 0;
-            const contractFallbackUpToToday = fallbackContractSpentUpToToday.get(contract.id) || 0;
-
-            (contract.lineItems || []).forEach(lineItem => {
-                const supplierId = lineItem.supplierId || lineItem.supplierld || supplierFallback;
-                const sectorId = lineItem.sectorId || lineItem.sectorld;
-
-                if (!supplierId) return;
-
-                const lineItemTotal = parseFloat(lineItem.totalAmount) || 0;
-                if (lineItemTotal <= 0 || !lineItem.startDate || !lineItem.endDate) return;
-
-                const lineItemProportion = totalContractValue > 0 ? lineItemTotal / totalContractValue : 0;
-
-                const lineItemId = lineItem.id || lineItem.lineItemId || lineItem._key || null;
-                const start = normalizeDate(lineItem.startDate);
-                const end = normalizeDate(lineItem.endDate);
-                if (!start || !end) return;
-
-                let spentTotal = lineItemId ? (lineItemSpentTotal.get(lineItemId) || 0) : 0;
-                let spentUpToToday = lineItemId ? (lineItemSpentUpToToday.get(lineItemId) || 0) : 0;
-
-                if (!lineItemId) {
-                    spentTotal += contractFallbackTotal * lineItemProportion;
-                    spentUpToToday += contractFallbackUpToToday * lineItemProportion;
+                if (!supplierId || total <= 0 || !startDate || !endDate || startDate > endDate) {
+                    return;
                 }
 
-                let remaining = Math.max(0, lineItemTotal - spentTotal);
-                if (remaining <= 0) return;
-
-                const overlapStart = new Date(Math.max(start.getTime(), filterStartDate.getTime()));
-                const overlapEnd = new Date(Math.min(end.getTime(), filterEndDate.getTime()));
-                if (overlapEnd < overlapStart) return;
-
-                const totalDays = Math.max(1, Math.round((end - start) / dayMs) + 1);
-                const dailyAmount = lineItemTotal / totalDays;
-
-                let adjustedSpentUpToToday = spentUpToToday;
-                if (start < overlapStart) {
-                    const preOverlapDays = Math.max(0, Math.round((overlapStart - start) / dayMs));
-                    const expectedPreOverlap = dailyAmount * preOverlapDays;
-                    adjustedSpentUpToToday = Math.max(0, adjustedSpentUpToToday - expectedPreOverlap);
+                // Filter overlap
+                const overlapStart = new Date(Math.max(startDate.getTime(), filterStartDate.getTime()));
+                overlapStart.setHours(0, 0, 0, 0);
+                const overlapEnd = new Date(Math.min(endDate.getTime(), filterEndDate.getTime()));
+                overlapEnd.setHours(0, 0, 0, 0);
+                if (overlapStart > overlapEnd) {
+                    return;
                 }
 
-                const overlapTotalDays = Math.max(1, Math.round((overlapEnd - overlapStart) / dayMs) + 1);
-                const overlapPotential = dailyAmount * overlapTotalDays;
-                adjustedSpentUpToToday = Math.min(adjustedSpentUpToToday, overlapPotential);
+                const fullDurationDays = Math.max(1, Math.round((endDate - startDate) / dayMs) + 1);
+                const dailyCost = total / fullDurationDays;
 
-                let overdueDays = 0;
-                if (today >= overlapStart) {
-                    const overdueEnd = today < overlapEnd ? today : overlapEnd;
-                    overdueDays = Math.max(0, Math.round((overdueEnd - overlapStart) / dayMs) + 1);
-                    overdueDays = Math.min(overdueDays, overlapTotalDays);
+                const key = `${contract.id}|${lineItemId}`;
+                const spentTotal = lineItemSpentTotal.get(key) || 0;
+                const spentLifetime = lineItemSpentLifetime.get(key) || 0;
+                const spentInFilter = lineItemSpentInFilter.get(key) || 0;
+                const spentInFilterUpToToday = lineItemSpentInFilterUpToToday.get(key) || 0;
+
+                const lineRemaining = Math.max(0, total - spentTotal);
+                if (lineRemaining <= 0) {
+                    return;
                 }
 
-                const futureDays = Math.max(0, overlapTotalDays - overdueDays);
-                const expectedOverlapSpentToDate = dailyAmount * overdueDays;
-                const overdueShortfall = Math.max(0, expectedOverlapSpentToDate - Math.min(adjustedSpentUpToToday, expectedOverlapSpentToDate));
-                const overdueAmount = Math.min(remaining, overdueShortfall);
+                // KEY DIFFERENCE: Calculate Lifetime Overdue (from start to today)
+                const overdueEnd = new Date(Math.min(endDate.getTime(), today.getTime()));
+                const daysOverdueLifetime = startDate > overdueEnd ? 0 : Math.max(0, Math.round((overdueEnd - startDate) / dayMs) + 1);
+                const expectedOverdueLifetime = dailyCost * daysOverdueLifetime;
 
-                remaining = Math.max(0, remaining - overdueAmount);
-                const futurePotential = dailyAmount * futureDays;
-                const futureAmount = Math.max(0, Math.min(remaining, futurePotential));
+                // Calculate In-Filter Future (from tomorrow to filter end)
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(0, 0, 0, 0);
+
+                const futureStart = new Date(Math.max(overlapStart.getTime(), tomorrow.getTime()));
+                const futureEnd = overlapEnd;
+                const daysFutureInFilter = futureStart > futureEnd ? 0 : Math.max(0, Math.round((futureEnd - futureStart) / dayMs) + 1);
+                const expectedFutureInFilter = dailyCost * daysFutureInFilter;
+
+                // Spent future in filter (expenses after today but in filter)
+                const spentFutureInFilter = Math.max(0, spentInFilter - spentInFilterUpToToday);
+
+                // Calculate In-Filter Overdue (OverlapStart -> Today)
+                const overdueEndInFilter = new Date(Math.min(overlapEnd.getTime(), today.getTime()));
+                const daysOverdueInFilter = overlapStart > overdueEndInFilter ? 0 : Math.max(0, Math.round((overdueEndInFilter - overlapStart) / dayMs) + 1);
+                const expectedOverdueInFilter = dailyCost * daysOverdueInFilter;
+
+                // Shortfalls using Lifetime for overdue, In-Filter for future
+                const overdueShortfallLifetime = Math.max(0, expectedOverdueLifetime - spentLifetime);
+                const futureShortfallInFilter = Math.max(0, expectedFutureInFilter - spentFutureInFilter);
+
+                // Shortfall for In-Filter Overdue
+                const overdueShortfallInFilter = Math.max(0, expectedOverdueInFilter - spentInFilterUpToToday);
+
+                // Amounts
+                const overdueAmount = Math.min(lineRemaining, overdueShortfallLifetime);
+                const futureAmount = Math.min(Math.max(0, lineRemaining - overdueAmount), futureShortfallInFilter);
+
+                // Calculate In-Filter Overdue Amount (capped by remaining line amount)
+                const overdueAmountInFilter = Math.min(lineRemaining, overdueShortfallInFilter);
+
+                if (overdueAmount <= 0 && futureAmount <= 0 && overdueAmountInFilter <= 0) {
+                    return;
+                }
 
                 if (futureAmount > 0) {
                     futureBySupplierId[supplierId] = (futureBySupplierId[supplierId] || 0) + futureAmount;
@@ -615,10 +830,14 @@ export default function BudgetPage() {
                 if (overdueAmount > 0) {
                     overdueBySupplierId[supplierId] = (overdueBySupplierId[supplierId] || 0) + overdueAmount;
                 }
+
+                if (overdueAmountInFilter > 0) {
+                    overdueInFilterBySupplierId[supplierId] = (overdueInFilterBySupplierId[supplierId] || 0) + overdueAmountInFilter;
+                }
             });
         });
 
-        return { futureBySupplierId, futureBySectorId, overdueBySupplierId };
+        return { futureBySupplierId, futureBySectorId, overdueBySupplierId, overdueInFilterBySupplierId };
     }, [contracts, marketingExpenses, startDate, endDate, year]);
 
     const displayData = useMemo(() => {
@@ -627,6 +846,7 @@ export default function BudgetPage() {
             const details = summary.details || [];
             const projections = contractProjections.futureBySupplierId[summary.supplierId] || 0;
             const overdue = contractProjections.overdueBySupplierId[summary.supplierId] || 0;
+            const overdueInFilter = contractProjections.overdueInFilterBySupplierId[summary.supplierId] || 0;
 
             let displayDetails = [...details];
 
@@ -649,14 +869,23 @@ export default function BudgetPage() {
                 displayBudget = displayDetails.reduce((sum, d) => sum + (d.budgetAmount || 0), 0);
             }
 
+            // Derive associated sectors from details if not present in supplier info
+            let associatedSectors = supplierInfo?.associatedSectors || [];
+            if (associatedSectors.length === 0 && details.length > 0) {
+                const sectorIds = new Set(details.map(d => d.sectorId).filter(Boolean));
+                associatedSectors = Array.from(sectorIds);
+            }
+
             return {
                 ...summary,
                 ...supplierInfo,
+                associatedSectors, // Override with derived sectors
                 displaySpend,
                 displayBudget,
                 displayDetails,
                 projections,
-                overdue
+                overdue,
+                overdueInFilter
             };
         });
 
@@ -664,8 +893,8 @@ export default function BudgetPage() {
 
         if (selectedSector !== 'all' && baseFiltered.length > 0) {
             baseFiltered = baseFiltered.filter(s => {
-                const supplierInfo = supplierMap.get(s.supplierId);
-                return supplierInfo?.associatedSectors?.includes(selectedSector);
+                // Use the enriched associatedSectors which includes dynamically derived ones
+                return s.associatedSectors?.includes(selectedSector);
             });
         }
 
@@ -786,52 +1015,67 @@ export default function BudgetPage() {
                 name: item.name || 'N/D',
                 spend: item.displaySpend || 0,
                 overdue: showProjections ? (item.overdue || 0) : 0,
+                projections: showProjections ? (item.projections || 0) : 0,
+                forecast: showProjections ? ((item.projections || 0) + (item.overdue || 0)) : 0,
                 budget: item.displayBudget || 0,
                 color: supplierBarPalette[index % supplierBarPalette.length]
             }));
     }, [displayData, showProjections, supplierBarPalette]);
 
     const supplierInsights = useMemo(() => {
-        if (supplierBarData.length === 0) {
+        if (displayData.length === 0) {
             return {
                 topShare: 0,
                 overBudgetValue: 0,
                 overBudgetCount: 0,
-                extraBudgetValue: 0
+                extraBudgetValue: 0,
+                analyzedCount: 0
             };
         }
 
-        const topEntry = supplierBarData[0];
-        const topTotal = (topEntry.spend || 0) + (showProjections ? (topEntry.overdue || 0) : 0);
-        const grandTotal = supplierBarData.reduce(
-            (sum, entry) => sum + (entry.spend || 0) + (showProjections ? (entry.overdue || 0) : 0),
+        // Calculate Top Share based on the top supplier in the FULL list (sorted by spend)
+        const sortedBySpend = [...displayData].sort((a, b) => {
+            const spendA = (a.displaySpend || 0) + (showProjections ? ((a.projections || 0) + (a.overdue || 0)) : 0);
+            const spendB = (b.displaySpend || 0) + (showProjections ? ((b.projections || 0) + (b.overdue || 0)) : 0);
+            return spendB - spendA;
+        });
+
+        const topEntry = sortedBySpend[0];
+        const topTotal = (topEntry.displaySpend || 0) + (showProjections ? ((topEntry.projections || 0) + (topEntry.overdue || 0)) : 0);
+
+        const grandTotal = displayData.reduce(
+            (sum, entry) => sum + (entry.displaySpend || 0) + (showProjections ? ((entry.projections || 0) + (entry.overdue || 0)) : 0),
             0
         );
-        const overBudgetSuppliers = supplierBarData.filter(
+
+        const overBudgetSuppliers = displayData.filter(
             (entry) =>
-                (entry.budget || 0) > 0 &&
-                (entry.spend || 0) + (showProjections ? (entry.overdue || 0) : 0) > (entry.budget || 0)
+                (entry.displayBudget || 0) > 0 &&
+                (entry.displaySpend || 0) + (showProjections ? ((entry.projections || 0) + (entry.overdue || 0)) : 0) > (entry.displayBudget || 0)
         );
+
         const overBudgetValue = overBudgetSuppliers.reduce(
             (sum, entry) =>
                 sum +
                 Math.max(
                     0,
-                    (entry.spend || 0) + (showProjections ? (entry.overdue || 0) : 0) - (entry.budget || 0)
+                    (entry.displaySpend || 0) + (showProjections ? ((entry.projections || 0) + (entry.overdue || 0)) : 0) - (entry.displayBudget || 0)
                 ),
             0
         );
-        const extraBudgetValue = supplierBarData
-            .filter((entry) => (entry.budget || 0) <= 0)
-            .reduce((sum, entry) => sum + (entry.spend || 0) + (showProjections ? (entry.overdue || 0) : 0), 0);
+
+        const extraBudgetValue = displayData
+            .filter((entry) => (entry.displayBudget || 0) <= 0)
+            .reduce((sum, entry) => sum + (entry.displaySpend || 0) + (showProjections ? ((entry.projections || 0) + (entry.overdue || 0)) : 0), 0);
 
         return {
             topShare: grandTotal > 0 ? (topTotal / grandTotal) * 100 : 0,
             overBudgetValue,
             overBudgetCount: overBudgetSuppliers.length,
-            extraBudgetValue
+            extraBudgetValue,
+            analyzedCount: displayData.length
         };
-    }, [supplierBarData, showProjections]);
+    }, [displayData, showProjections]);
 
     const sectorDistributionData = useMemo(() => {
         const totals = new Map();
@@ -847,15 +1091,32 @@ export default function BudgetPage() {
                     if (amount <= 0) return;
                     totals.set(sectorId, (totals.get(sectorId) || 0) + amount);
                 });
-            } else if (Array.isArray(item.associatedSectors) && item.associatedSectors.length > 0) {
-                const share = (item.displaySpend || 0) / item.associatedSectors.length;
-                if (share <= 0) return;
-                item.associatedSectors.forEach(sectorId => {
-                    if (!sectorId) return;
-                    totals.set(sectorId, (totals.get(sectorId) || 0) + share);
-                });
-            } else if ((item.displaySpend || 0) > 0) {
-                totals.set('unassigned', (totals.get('unassigned') || 0) + item.displaySpend);
+            } else {
+                // Fallback: try to derive sector from item.details (which might be populated from expenses even if no budget)
+                // OR from associatedSectors
+                // OR from the expenses themselves if we had access to them here.
+                // Since displayData items come from summaries, and we populated 'details' in summaries,
+                // let's check if we can use that.
+
+                // In the previous fix, we populated 'details' for suppliers without budget too.
+                // So 'details' should not be empty if there are expenses with line items.
+                // If 'details' is empty, it means expenses have no line items or no sectorId in line items.
+
+                if (Array.isArray(item.associatedSectors) && item.associatedSectors.length > 0) {
+                    const share = (item.displaySpend || 0) / item.associatedSectors.length;
+                    if (share > 0) {
+                        item.associatedSectors.forEach(sectorId => {
+                            if (!sectorId) return;
+                            totals.set(sectorId, (totals.get(sectorId) || 0) + share);
+                        });
+                    }
+                } else if ((item.displaySpend || 0) > 0) {
+                    // Try to find sector from the raw expenses if possible, but we don't have them here easily.
+                    // However, we can try to map 'unassigned' to a default sector if needed, or just keep it.
+                    // But wait, the user says "Non classificato" appears.
+                    // If we want to fix it, we need to ensure 'details' is populated correctly in the first place.
+                    totals.set('unassigned', (totals.get('unassigned') || 0) + item.displaySpend);
+                }
             }
         });
 
@@ -1029,17 +1290,21 @@ export default function BudgetPage() {
         const totalSpend = displayData.reduce((sum, item) => sum + item.displaySpend, 0);
         const totalFutureProjections = displayData.reduce((sum, item) => sum + (item.projections || 0), 0);
         const totalOverdueProjections = displayData.reduce((sum, item) => sum + (item.overdue || 0), 0);
+        const totalOverdueInFilter = displayData.reduce((sum, item) => sum + (item.overdueInFilter || 0), 0);
 
         let totalMasterBudget = 0;
         if (selectedSector === 'all') {
-            totalMasterBudget = sectorBudgets.reduce((sum, item) => sum + (item.maxAmount || 0), 0);
+            totalMasterBudget = sectorBudgets.reduce((sum, item) => sum + (item.amount || 0), 0);
         } else {
             const budgetInfo = sectorBudgets.find(b => b.sectorId === selectedSector);
-            totalMasterBudget = budgetInfo?.maxAmount || 0;
+            totalMasterBudget = budgetInfo?.amount || 0;
         }
 
+
+
         const totalAllocatedBudget = displayData.reduce((sum, item) => sum + item.displayBudget, 0);
-        const projectionsCombined = totalFutureProjections + totalOverdueProjections;
+        // Use In-Filter overdue for forecast to match Dashboard
+        const projectionsCombined = totalFutureProjections + totalOverdueInFilter;
         const totalForecast = totalSpend + (showProjections ? projectionsCombined : 0);
         const utilizationPercentage = totalMasterBudget > 0 ? (totalForecast / totalMasterBudget) * 100 : 0;
         const hasOverrunRisk = showProjections && totalForecast > totalMasterBudget;
@@ -1061,7 +1326,8 @@ export default function BudgetPage() {
                 value: formatCurrency(globalKpis.totalSpend),
                 subtitle: supplierCount > 0 ? `${supplierCount} fornitori monitorati` : 'Nessun fornitore filtrato',
                 icon: <DollarSign className="w-6 h-6" />,
-                gradient: 'from-emerald-500 to-green-600'
+                gradient: 'from-emerald-500 to-green-600',
+                tooltip: 'Somma di tutte le spese registrate e fatturate per il periodo selezionato.'
             },
             {
                 key: 'allocato',
@@ -1069,7 +1335,8 @@ export default function BudgetPage() {
                 value: formatCurrency(globalKpis.totalAllocatedBudget),
                 subtitle: 'Distribuito sui canali attivi',
                 icon: <Target className="w-6 h-6" />,
-                gradient: 'from-emerald-400 to-lime-500'
+                gradient: 'from-emerald-400 to-lime-500',
+                tooltip: 'Budget totale assegnato ai canali e fornitori attivi per l\'anno corrente.'
             },
             {
                 key: 'forecast',
@@ -1077,7 +1344,8 @@ export default function BudgetPage() {
                 value: formatCurrency(globalKpis.totalForecast),
                 subtitle: showProjections ? 'Incluse proiezioni contrattuali' : 'Solo spesa registrata',
                 icon: <TrendingUp className="w-6 h-6" />,
-                gradient: 'from-teal-500 to-cyan-500'
+                gradient: 'from-teal-500 to-cyan-500',
+                tooltip: 'Stima della spesa totale a fine periodo, basata sulle spese attuali e sui costi contrattuali futuri previsti.'
             },
             {
                 key: 'master',
@@ -1089,7 +1357,8 @@ export default function BudgetPage() {
                 trend: globalKpis.totalMasterBudget > 0 ? {
                     direction: utilizationTrend,
                     value: `${utilizationPct}%`
-                } : undefined
+                } : undefined,
+                tooltip: 'Budget complessivo definito a livello aziendale per l\'area marketing.'
             }
         ];
     }, [globalKpis, showProjections, displayData.length]);
@@ -1125,37 +1394,28 @@ export default function BudgetPage() {
         setSelectedSupplier(null);
     };
 
-    const handleSaveBudget = async (allocations, isUnexpected) => {
-        if (!selectedSupplier || !year) return;
-        const toastId = toast.loading("Salvataggio budget...");
-
+    const handleSaveAllocations = useCallback(async (updatedAllocations) => {
         try {
-            const budgetQuery = query(collection(db, "budgets"), where("year", "==", year), where("supplierId", "==", selectedSupplier.id));
-            const existingDocs = await getDocs(budgetQuery);
-            const dataToSave = {
-                year,
+            const token = await getToken();
+            await axios.post('/api/budgets/update', {
                 supplierId: selectedSupplier.id,
-                allocations,
-                isUnexpected,
-                updatedAt: serverTimestamp()
-            };
+                year: year,
+                allocations: updatedAllocations
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
 
-            const batch = writeBatch(db);
-            if (existingDocs.empty) {
-                const newDocRef = doc(collection(db, "budgets"));
-                batch.set(newDocRef, { ...dataToSave, createdAt: serverTimestamp() });
-            } else {
-                batch.update(existingDocs.docs[0].ref, dataToSave);
-            }
-
-            await batch.commit();
-            toast.success("Budget salvato!", { id: toastId });
+            toast.success("Budget aggiornato con successo");
             handleCloseModal();
+            setRefreshTrigger(prev => prev + 1);
         } catch (error) {
-            console.error("Errore durante il salvataggio del budget:", error);
-            toast.error("Errore salvataggio.", { id: toastId });
+            console.error("Error updating budget:", error);
+            toast.error("Errore durante l'aggiornamento del budget");
         }
-    };
+    }, [selectedSupplier, year, getToken, handleCloseModal]);
 
     const resetFilters = () => {
         setSearchTerm('');
@@ -1713,29 +1973,25 @@ export default function BudgetPage() {
                                                     content={renderSupplierTooltip}
                                                 />
                                                 <Area
-                                                    type="monotone"
+                                                    type="linear"
                                                     dataKey="spend"
                                                     name="Speso"
                                                     stackId="supplier"
-                                                    stroke="#059669"
-                                                    strokeWidth={2}
+                                                    stroke="#10B981"
                                                     fill="url(#supplier-spend-gradient)"
+                                                    strokeWidth={2}
                                                     fillOpacity={1}
-                                                    activeDot={{ r: 4, strokeWidth: 0 }}
-                                                    isAnimationActive={false}
                                                 />
                                                 {showProjections && (
                                                     <Area
-                                                        type="monotone"
-                                                        dataKey="overdue"
+                                                        type="linear"
+                                                        dataKey="forecast"
                                                         name="Previsioni"
                                                         stackId="supplier"
                                                         stroke="#EA580C"
-                                                        strokeWidth={2}
                                                         fill="url(#supplier-forecast-gradient)"
+                                                        strokeWidth={2}
                                                         fillOpacity={1}
-                                                        activeDot={{ r: 4, strokeWidth: 0 }}
-                                                        isAnimationActive={false}
                                                     />
                                                 )}
                                             </AreaChart>
@@ -1932,7 +2188,7 @@ export default function BudgetPage() {
                 <BudgetAllocationModal
                     isOpen={isModalOpen}
                     onClose={handleCloseModal}
-                    onSave={handleSaveBudget}
+                    onSave={handleSaveAllocations}
                     supplier={selectedSupplier}
                     year={year}
                     initialAllocations={selectedSupplier?.allocations}

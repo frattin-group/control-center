@@ -22,10 +22,37 @@ export default function ContractFormModal({ isOpen, onClose, onSave, initialData
 
     useEffect(() => {
         if (isOpen) {
-            const data = initialData 
-                ? { ...initialData, lineItems: initialData.lineItems?.map(item => ({...item, _key: Math.random(), totalAmount: item.totalAmount || ''})) || [defaultLineItem] } 
-                : defaultFormData;
-            setFormData(data);
+            if (initialData) {
+                const formatDateForInput = (dateString) => {
+                    if (!dateString) return '';
+                    // If it's already YYYY-MM-DD, return it
+                    if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
+                    try {
+                        // Handle ISO strings safely
+                        return new Date(dateString).toISOString().split('T')[0];
+                    } catch (e) {
+                        return '';
+                    }
+                };
+
+                const mappedData = {
+                    ...initialData,
+                    supplierld: initialData.supplierld || initialData.supplierId || '',
+                    signingDate: formatDateForInput(initialData.signingDate),
+                    lineItems: initialData.lineItems?.map(item => ({
+                        ...item,
+                        _key: Math.random(),
+                        totalAmount: item.totalAmount || '',
+                        startDate: formatDateForInput(item.startDate),
+                        endDate: formatDateForInput(item.endDate),
+                        sectorld: item.sectorld || item.sectorId || '',
+                        branchld: item.branchld || item.branchId || ''
+                    })) || [defaultLineItem]
+                };
+                setFormData(mappedData);
+            } else {
+                setFormData(defaultFormData);
+            }
         }
         setContractFile(null);
     }, [isOpen, initialData, defaultFormData, defaultLineItem]);
@@ -200,7 +227,7 @@ export default function ContractFormModal({ isOpen, onClose, onSave, initialData
                                         <Paperclip className="w-4 h-4" />
                                         <span>{contractFile ? "Cambia PDF" : "Carica PDF"}</span>
                                     </label>
-                                    <input id="contractUpload" type="file" accept="application/pdf" onChange={handleFileChange} className="hidden"/>
+                                    <input id="contractUpload" type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" />
                                     <span className="text-sm text-gray-600">{contractFile ? contractFile.name : "Nessun nuovo file selezionato"}</span>
                                 </div>
                             </div>

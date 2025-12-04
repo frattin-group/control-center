@@ -3,6 +3,23 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// Middleware for Bearer Token authentication
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: 'Missing authentication token' });
+
+    if (token !== process.env.DATA_API_TOKEN) {
+        return res.status(403).json({ error: 'Invalid authentication token' });
+    }
+
+    next();
+};
+
+// Apply middleware to all routes in this router
+router.use(authenticateToken);
+
 // GET /api/data/daily-expenses?date=YYYY-MM-DD
 router.get('/daily-expenses', async (req, res) => {
     try {

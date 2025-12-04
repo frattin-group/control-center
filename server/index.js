@@ -19,19 +19,22 @@ const contractRoutes = require('./routes/contracts');
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/invoices', invoiceRoutes);
-app.use('/api/data', dataRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/budgets', budgetRoutes);
-app.use('/api/contracts', contractRoutes);
-app.use('/api/employees', require('./routes/employees'));
-app.use('/api/master-data', require('./routes/master-data'));
-app.use('/api/suppliers', require('./routes/suppliers'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/sector-budgets', require('./routes/sector-budgets'));
-app.use('/api/invoice-analysis', require('./routes/invoice-analysis'));
-app.use('/api/upload', require('./routes/upload'));
-app.use('/api/data', require('./routes/external-data')); // Mount new external data routes under /api/data to match requested paths
+// Public routes (Webhooks, External Data - protected by own middleware)
+app.use('/api/webhooks', require('./routes/webhooks'));
+app.use('/api/data', require('./routes/external-data'));
+
+// Protected routes (Require Clerk Auth)
+app.use('/api/invoices', ClerkExpressRequireAuth(), invoiceRoutes);
+app.use('/api/expenses', ClerkExpressRequireAuth(), expenseRoutes);
+app.use('/api/budgets', ClerkExpressRequireAuth(), budgetRoutes);
+app.use('/api/contracts', ClerkExpressRequireAuth(), contractRoutes);
+app.use('/api/employees', ClerkExpressRequireAuth(), require('./routes/employees'));
+app.use('/api/master-data', ClerkExpressRequireAuth(), require('./routes/master-data'));
+app.use('/api/suppliers', ClerkExpressRequireAuth(), require('./routes/suppliers'));
+app.use('/api/users', ClerkExpressRequireAuth(), require('./routes/users'));
+app.use('/api/sector-budgets', ClerkExpressRequireAuth(), require('./routes/sector-budgets'));
+app.use('/api/invoice-analysis', ClerkExpressRequireAuth(), require('./routes/invoice-analysis'));
+app.use('/api/upload', ClerkExpressRequireAuth(), require('./routes/upload'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { db } from '../firebase/config';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { collection, query, orderBy, onSnapshot, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
+import { useAuth } from '@clerk/clerk-react';
+import axios from 'axios';
+import { getStorage, ref, getDownloadURL, deleteObject } from "firebase/storage";
 import {
     PlusCircle, Search, Wallet, Car, Sailboat, Caravan, Building2, Layers, MapPin,
     DollarSign, FileText, Paperclip, Copy, Pencil, Trash2, AlertTriangle, CheckCircle2,
@@ -13,6 +13,7 @@ import ExpenseFormModal from '../components/ExpenseFormModal';
 import toast from 'react-hot-toast';
 import { MultiSelect, KpiCard } from '../components/SharedComponents';
 import { loadFilterPresets, persistFilterPresets } from '../utils/filterPresets';
+import { getDefaultDateFilter, PREDEFINED_DATE_PRESETS } from '../utils/dateFilters';
 import { deriveBranchesForLineItem, computeExpenseBranchShares } from '../utils/branchAssignments';
 import { COST_DOMAINS, DEFAULT_COST_DOMAIN } from '../constants/costDomains';
 import { getSectorColor } from '../constants/sectorColors';
@@ -60,7 +61,7 @@ const branchColorPalette = [
     '#F59E0B',
 ];
 
-const TARGET_BRANCH_NAMES = ['Filiale Vicenza', 'Filiale Garbagnate', 'Filiale Altivole'];
+const TARGET_BRANCH_NAMES = ['Filiale Vicenza', 'Filiale Garbagnate', 'Filiale Altivole', 'Rossano Camper&Caravan'];
 
 const normalizeBranchLabel = (value = '') =>
     value
@@ -98,7 +99,7 @@ const buildNonOperationsTrendData = ({
 
     processedExpenses.forEach((expense) => {
         if (!expense?.date) return;
-        const expenseDate = new Date(`${expense.date}T00:00:00`);
+        const expenseDate = new Date(expense.date);
         if (Number.isNaN(expenseDate.getTime())) return;
         if (expenseDate.getFullYear() !== selectedYear) return;
 
@@ -129,6 +130,18 @@ const buildNonOperationsTrendData = ({
 
         const sectorId = expense.sectorId || expense.lineItems?.[0]?.sectorId || 'unassigned';
         const sectorName = sectorMap?.get(sectorId) || 'Altro';
+
+        if (sectorName === 'Altro') {
+            console.warn('Found Altro expense:', {
+                id: expense.id,
+                amount: totalAmount,
+                sectorId: expense.sectorId,
+                lineItemSectorId: expense.lineItems?.[0]?.sectorId,
+                computedSectorId: sectorId,
+                sectorMapHasIt: sectorMap?.has(sectorId)
+            });
+        }
+
         sectorTotals.set(sectorName, (sectorTotals.get(sectorName) || 0) + totalAmount);
     });
 
@@ -254,22 +267,31 @@ const formatCurrency = (number) => {
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/D';
-    return new Date(dateString + 'T00:00:00').toLocaleDateString('it-IT', {
-        day: '2-digit', month: 'short', year: 'numeric'
-    });
+    try {
+        const d = new Date(dateString);
+        // If dateString is just YYYY-MM-DD, new Date() might treat it as UTC or Local depending on browser.
+        // But if it's ISO, it works.
+        // The previous code appended T00:00:00 which broke ISO strings.
+
+        if (isNaN(d.getTime())) {
+            // Try appending time if it failed (maybe it was just YYYY-MM-DD and browser is strict?)
+            // But usually YYYY-MM-DD works.
+            // Let's just return original if fail, or N/D
+            return 'N/D';
+        }
+        return d.toLocaleDateString('it-IT', {
+            day: '2-digit', month: 'short', year: 'numeric'
+        });
+    } catch (e) {
+        return 'N/D';
+    }
 };
 
 const formatDateInput = (year, month, day) => new Date(Date.UTC(year, month, day)).toISOString().split('T')[0];
 
-const getDefaultStartDate = () => {
-    const currentYear = new Date().getFullYear();
-    return formatDateInput(currentYear, 0, 1);
-};
-
-const getDefaultEndDate = () => {
-    const currentYear = new Date().getFullYear();
-    return formatDateInput(currentYear, 11, 31);
-};
+// Use centralized date filter functions
+const getDefaultStartDate = () => getDefaultDateFilter().startDate;
+const getDefaultEndDate = () => getDefaultDateFilter().endDate;
 
 // Progress Bar universale con gestione sforamenti
 const ProgressBar = ({ value, max, showOverrun = true }) => {
@@ -325,7 +347,7 @@ const ExpensesDateRangeDropdown = ({
         });
     };
 
-    const label = hasActiveRange
+    const label = (startDate && endDate)
         ? `${formatDateLabel(startDate)} → ${formatDateLabel(endDate)}`
         : 'Seleziona periodo';
 
@@ -730,29 +752,29 @@ const ExpenseTableView = React.memo(({
                 <table className="w-full text-sm text-slate-700">
                     <thead className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white uppercase text-[11px] font-black tracking-[0.16em]">
                         <tr>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-4 py-3 text-left w-[25%] min-w-[200px]">
                                 <button type="button" onClick={() => handleSort('supplier')} className="inline-flex items-center gap-2">
                                     FORNITORE
                                     {renderSortIndicator('supplier')}
                                 </button>
                             </th>
-                            <th className="px-4 py-3 text-left hidden lg:table-cell">CATEGORIA</th>
-                            <th className="px-4 py-3 text-left hidden xl:table-cell">SETTORE</th>
-                            <th className="px-4 py-3 text-left hidden xl:table-cell">FILIALE</th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-4 py-3 text-left hidden lg:table-cell w-[15%]">CATEGORIA</th>
+                            <th className="px-4 py-3 text-left hidden xl:table-cell w-[10%]">SETTORE</th>
+                            <th className="px-4 py-3 text-left hidden xl:table-cell w-[10%]">FILIALE</th>
+                            <th className="px-4 py-3 text-left w-[120px]">
                                 <button type="button" onClick={() => handleSort('date')} className="inline-flex items-center gap-2">
                                     DATA
                                     {renderSortIndicator('date')}
                                 </button>
                             </th>
-                            <th className="px-4 py-3 text-right">
+                            <th className="px-4 py-3 text-right w-[120px]">
                                 <button type="button" onClick={() => handleSort('amount')} className="inline-flex items-center gap-2">
                                     IMPORTO
                                     {renderSortIndicator('amount')}
                                 </button>
                             </th>
-                            {showDocuments && <th className="px-4 py-3 text-center">DOCUMENTI</th>}
-                            <th className="px-4 py-3 text-center">AZIONI</th>
+                            {showDocuments && <th className="px-4 py-3 text-center w-[100px]">DOCUMENTI</th>}
+                            <th className="px-4 py-3 text-center w-[100px]">AZIONI</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -977,6 +999,7 @@ export default function ExpensesPage({
     const [budgets, setBudgets] = useState([]);
     const [sectorBudgets, setSectorBudgets] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Stati UI
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1128,61 +1151,65 @@ export default function ExpensesPage({
     }, [filterPresets]);
 
     // Caricamento dati da Firebase
+    const { getToken } = useAuth();
+
+    // Caricamento dati da API
     useEffect(() => {
-        setIsLoading(true);
+        const fetchData = async () => {
+            // toast.info("Inizio caricamento dati..."); // Debug
+            setIsLoading(true);
+            try {
+                const token = await getToken();
+                if (!token) {
+                    toast.error("Token di autenticazione mancante!");
+                    return;
+                }
+                const headers = { Authorization: `Bearer ${token}` };
 
-        let expensesQuery = query(collection(db, "expenses"), orderBy("date", "desc"));
+                // Fetch Master Data and Expenses in parallel
+                const [dataRes, expensesRes] = await Promise.all([
+                    axios.get('/api/data/initial-data', { headers }),
+                    axios.get('/api/expenses', { headers })
+                ]);
 
-        if (user.role === 'collaborator' && user.assignedChannels?.length > 0 && user.assignedChannels.length <= 10) {
-            expensesQuery = query(
-                collection(db, "expenses"),
-                where("supplierId", "in", user.assignedChannels),
-                orderBy("date", "desc")
-            );
-        }
+                const data = dataRes.data;
+                const expensesData = expensesRes.data;
 
-        const currentYear = new Date().getFullYear();
+                setSectors(data.sectors);
+                setBranches(data.branches);
+                setSuppliers(data.suppliers);
+                setMarketingChannels(data.marketingChannels);
+                setChannelCategories(data.channelCategories);
+                setGeographicAreas(data.geographicAreas);
+                setContracts(data.contracts);
+                setBudgets(data.budgets);
+                setSectorBudgets(data.sectorBudgets);
 
-        const unsubscribes = [
-            onSnapshot(expensesQuery, (snap) => {
-                const expenses = snap.docs.map(doc => ({
-                    ...doc.data(),
-                    id: doc.id
-                }));
-                setRawExpenses(expenses);
-            }),
-            onSnapshot(query(collection(db, "sectors"), orderBy("name")),
-                snap => setSectors(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "branches"), orderBy("name")),
-                snap => setBranches(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "channels"), orderBy("name")),
-                snap => setSuppliers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "marketing_channels"), orderBy("name")),
-                snap => setMarketingChannels(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "channel_categories"), orderBy("name")),
-                snap => setChannelCategories(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "geographic_areas"), orderBy("name")),
-                snap => setGeographicAreas(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "contracts"), orderBy("description")),
-                snap => setContracts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "budgets"), where("year", "==", currentYear)),
-                snap => setBudgets(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))),
-            onSnapshot(query(collection(db, "sector_budgets"), where("year", "==", currentYear)),
-                snap => {
-                    setSectorBudgets(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                    setIsLoading(false);
-                })
-        ];
+                console.log("Expenses fetched:", expensesData.length);
+                if (expensesData.length > 0) {
+                    console.log("First expense sample:", expensesData[0]);
+                    console.log("Date type:", typeof expensesData[0].date);
+                    console.log("Invoice URL:", expensesData[0].invoicePdfUrl);
+                }
+                // toast.success(`Caricate ${expensesData.length} spese`); // Debug
 
-        return () => unsubscribes.forEach(unsub => unsub());
-    }, [user]);
+                setRawExpenses(expensesData);
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                toast.error(`Errore caricamento: ${error.message}`);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [getToken, refreshTrigger]);
 
     const filteredExpenses = useMemo(() => {
         return rawExpenses.filter(expense => {
             const expenseDomain = expense.costDomain || DEFAULT_COST_DOMAIN;
-            if (resolvedCostDomain === DEFAULT_COST_DOMAIN) {
-                return expenseDomain === DEFAULT_COST_DOMAIN || !expense.costDomain;
-            }
+            // Strict filtering: only show expenses that match the current domain
             return expenseDomain === resolvedCostDomain;
         });
     }, [rawExpenses, resolvedCostDomain]);
@@ -1194,6 +1221,12 @@ export default function ExpensesPage({
             // Normalizza IDs
             let supplierId = expense.supplierId || expense.supplierld || expense.channelId || expense.channelld;
             let sectorId = expense.sectorId || expense.sectorld;
+
+            // Fallback sectorId from lineItems if missing on parent
+            if (!sectorId && Array.isArray(expense.lineItems) && expense.lineItems.length > 0) {
+                const firstItem = expense.lineItems[0];
+                sectorId = firstItem.sectorId || firstItem.sectorld;
+            }
 
             // Prepara lineItems
             let lineItems = [];
@@ -1322,7 +1355,7 @@ export default function ExpensesPage({
             const budgetInfo = budgetInfoMap.get(budgetKey);
 
             const hasTopLevelContract = !!expense.contractPdfUrl || !!expense.relatedContractId;
-            const allLineItemsHaveContract = lineItems.length > 0 && lineItems.every(li => !!li.relatedContractId);
+            const allLineItemsHaveContract = lineItems.length > 0 && lineItems.every(li => !!li.contractId || !!li.relatedContractId);
             const isContractSatisfied = hasTopLevelContract || allLineItemsHaveContract;
 
             return {
@@ -1344,7 +1377,11 @@ export default function ExpensesPage({
 
         // Filtro per settore
         if (selectedSector !== 'all') {
-            normalized = normalized.filter(exp => exp.sectorId === selectedSector);
+            normalized = normalized.filter(exp => {
+                // Check if any amount was allocated to this sector
+                const totalAllocated = exp.lineItems.reduce((sum, item) => sum + (item.amountInFilter || 0), 0);
+                return totalAllocated > 0;
+            });
         }
 
         // Filtro per categoria
@@ -1599,7 +1636,7 @@ export default function ExpensesPage({
                         id: exp.id,
                         name: supplierMap.get(exp.supplierId) || exp.description || 'N/D',
                         amount: exp.displayAmount || exp.amount || 0,
-                        subtitle: exp.date ? new Date(exp.date).toLocaleDateString('it-IT') : undefined
+                        subtitle: formatDate(exp.date)
                     }))
             });
         }
@@ -1624,11 +1661,38 @@ export default function ExpensesPage({
                         id: exp.id,
                         name: supplierMap.get(exp.supplierId) || exp.description || 'N/D',
                         amount: exp.displayAmount || exp.amount || 0,
-                        subtitle: exp.date ? new Date(exp.date).toLocaleDateString('it-IT') : undefined
+                        subtitle: formatDate(exp.date)
                     }))
             });
         }
 
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            const searchResults = processedExpenses.filter(exp => {
+                const supplierName = supplierMap.get(exp.supplierId)?.toLowerCase() || '';
+                const description = exp.description?.toLowerCase() || '';
+                return supplierName.includes(lowerTerm) || description.includes(lowerTerm);
+            });
+
+            if (searchResults.length > 0) {
+                alerts.push({
+                    key: 'searchResults',
+                    type: 'info',
+                    title: `Risultati ricerca: ${searchResults.length} spese`,
+                    description: `Hai cercato "${searchTerm}"`,
+                    totalLabel: 'Totale ricerca',
+                    totalAmount: searchResults.reduce((sum, exp) => sum + (exp.displayAmount || exp.amount || 0), 0),
+                    items: searchResults
+                        .slice(0, 6)
+                        .map(exp => ({
+                            id: exp.id,
+                            name: supplierMap.get(exp.supplierId) || exp.description || 'N/D',
+                            amount: exp.displayAmount || exp.amount || 0,
+                            subtitle: formatDate(exp.date)
+                        }))
+                });
+            }
+        }
         const unassignedBranchExpenses = processedExpenses.filter(exp => {
             const lineItems = exp.lineItems || [];
             if (lineItems.length > 0) {
@@ -1652,7 +1716,7 @@ export default function ExpensesPage({
                         id: exp.id,
                         name: supplierMap.get(exp.supplierId) || exp.description || 'N/D',
                         amount: exp.displayAmount || exp.amount || 0,
-                        subtitle: exp.date ? new Date(exp.date).toLocaleDateString('it-IT') : undefined
+                        subtitle: formatDate(exp.date)
                     }))
             });
         }
@@ -1693,10 +1757,10 @@ export default function ExpensesPage({
         // Calcola budget totale per spese visualizzate
         let totalBudget = 0;
         if (selectedSector === 'all') {
-            totalBudget = sectorBudgets.reduce((sum, sb) => sum + (sb.maxAmount || 0), 0);
+            totalBudget = sectorBudgets.reduce((sum, sb) => sum + (sb.amount || 0), 0);
         } else {
             const sectorBudget = sectorBudgets.find(sb => sb.sectorId === selectedSector);
-            totalBudget = sectorBudget?.maxAmount || 0;
+            totalBudget = sectorBudget?.amount || 0;
         }
 
         const budgetUtilization = totalBudget > 0 ? (totalSpend / totalBudget) * 100 : 0;
@@ -1802,7 +1866,7 @@ export default function ExpensesPage({
 
         processedExpenses.forEach((expense) => {
             if (!expense.date) return;
-            const expenseDate = new Date(`${expense.date}T00:00:00`);
+            const expenseDate = new Date(expense.date);
             if (Number.isNaN(expenseDate.getTime())) return;
             if (expenseDate.getFullYear() !== selectedOperationsYear) return;
             const monthId = String(expenseDate.getMonth() + 1).padStart(2, '0');
@@ -2008,20 +2072,35 @@ export default function ExpensesPage({
         const effectiveContractFile = contractFileArg || expenseData?.contractFile || null;
 
         try {
-            const expenseId = isEditing ? expenseData.id : doc(collection(db, 'expenses')).id;
+            // Generate UUID for new expenses to use in storage path
+            const expenseId = isEditing ? expenseData.id : crypto.randomUUID();
             let invoiceURL = expenseData.invoicePdfUrl || "";
             let contractURL = expenseData.contractPdfUrl || "";
 
             if (effectiveInvoiceFile) {
-                const invoiceRef = ref(storage, `invoices/${expenseId}/${effectiveInvoiceFile.name}`);
-                await uploadBytes(invoiceRef, effectiveInvoiceFile);
-                invoiceURL = await getDownloadURL(invoiceRef);
+                const formData = new FormData();
+                formData.append('file', effectiveInvoiceFile);
+                const token = await getToken();
+                const uploadRes = await axios.post('/api/upload', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                invoiceURL = uploadRes.data.url;
             }
 
             if (effectiveContractFile) {
-                const contractRef = ref(storage, `contracts_on_expenses/${expenseId}/${effectiveContractFile.name}`);
-                await uploadBytes(contractRef, effectiveContractFile);
-                contractURL = await getDownloadURL(contractRef);
+                const formData = new FormData();
+                formData.append('file', effectiveContractFile);
+                const token = await getToken();
+                const uploadRes = await axios.post('/api/upload', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                contractURL = uploadRes.data.url;
             }
 
             const safeLineItems = (expenseData.lineItems || []).map(item => ({
@@ -2035,11 +2114,16 @@ export default function ExpensesPage({
                 null;
 
             const dataToSave = {
+                id: expenseId, // Send ID for creation if we want to enforce it, or let server handle it (but we used it for storage)
+                // Note: Server createExpense might ignore ID if it auto-generates, but we need it for storage consistency.
+                // If server auto-generates, we might have a mismatch if we don't send it.
+                // My Prisma schema says @default(uuid()), so it auto-generates if not provided.
+                // But I can provide it.
                 date: expenseData.date,
                 description: expenseData.description,
                 sectorId: primarySectorId,
                 supplierId: expenseData.supplierId,
-                amount: safeLineItems.reduce((sum, item) => sum + (item.amount || 0), 0),
+                totalAmount: safeLineItems.reduce((sum, item) => sum + (item.amount || 0), 0),
                 lineItems: safeLineItems,
                 invoicePdfUrl: invoiceURL,
                 contractPdfUrl: contractURL,
@@ -2051,25 +2135,35 @@ export default function ExpensesPage({
                 costDomain: expenseData.costDomain || resolvedCostDomain,
             };
 
+            const token = await getToken();
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
             if (isEditing) {
-                await updateDoc(doc(db, "expenses", expenseId), {
-                    ...dataToSave,
-                    updatedAt: serverTimestamp()
-                });
+                await axios.put(`/api/expenses/${expenseId}`, dataToSave, { headers });
             } else {
-                dataToSave.authorId = user.uid;
-                dataToSave.authorName = user.name;
-                dataToSave.createdAt = serverTimestamp();
-                await setDoc(doc(db, "expenses", expenseId), dataToSave);
+                await axios.post('/api/expenses', dataToSave, { headers });
             }
 
             toast.success(isEditing ? 'Spesa aggiornata!' : 'Spesa creata!', { id: toastId });
             handleCloseModal();
+
+            // Trigger refresh? The useEffect will not auto-trigger unless we add a refresh trigger.
+            // I should probably add a refresh function to the context or just reload the page for now, 
+            // or better, re-fetch data.
+            // I'll add a simple window.location.reload() for now or just re-fetch if I can access the fetch function.
+            // Since fetchData is inside useEffect, I can't call it.
+            // I will add a dependency to useEffect to trigger refresh.
+            // For now, I'll just reload the page to be safe and simple.
+            setRefreshTrigger(prev => prev + 1);
+
         } catch (error) {
             console.error("Errore nel salvare la spesa:", error);
             toast.error(error.message || 'Errore imprevisto.', { id: toastId });
         }
-    }, [user.uid, user.name, handleCloseModal, resolvedCostDomain]);
+    }, [getToken, handleCloseModal, resolvedCostDomain]);
 
     const handleDeleteExpense = useCallback(async (expense) => {
         if (!canEditOrDelete(expense)) {
@@ -2091,8 +2185,17 @@ export default function ExpensesPage({
                 await deleteObject(fileRef).catch(err => console.warn("File non trovato:", err));
             }
 
-            await deleteDoc(doc(db, "expenses", expense.id));
+
+
+            const token = await getToken();
+            await axios.delete(`/api/expenses/${expense.id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
             toast.success("Spesa eliminata!", { id: toastId });
+            setRefreshTrigger(prev => prev + 1);
         } catch (error) {
             console.error("Errore durante l'eliminazione della spesa:", error);
             toast.error("Errore durante l'eliminazione.", { id: toastId });
@@ -2148,21 +2251,37 @@ export default function ExpensesPage({
     }, [presetName, dateFilter.startDate, dateFilter.endDate, selectedSector, selectedBranch, selectedCategory, supplierFilter, branchFilter, statusFilter, invoiceFilter, contractFilter, sortOrder]);
 
     const applyPreset = useCallback((preset) => {
+        // Handle predefined presets (with getFilter function)
+        if (preset.isPredefined && preset.getFilter) {
+            const dateRange = preset.getFilter();
+            setDateFilter({
+                startDate: dateRange.startDate,
+                endDate: dateRange.endDate
+            });
+            toast.success(`Filtro \"${preset.name}\" applicato`);
+            return;
+        }
+
+        // Handle custom saved presets
         setDateFilter({
-            startDate: preset.startDate || defaultStartDate,
-            endDate: preset.endDate || defaultEndDate
+            startDate: preset.startDate || getDefaultStartDate(),
+            endDate: preset.endDate || getDefaultEndDate()
         });
+        if (Array.isArray(preset.supplierFilter)) {
+            setSupplierFilter(preset.supplierFilter);
+        }
+        if (Array.isArray(preset.branchFilter)) {
+            setBranchFilter(preset.branchFilter);
+        }
         setSelectedSector(preset.selectedSector || 'all');
         setSelectedBranch(preset.selectedBranch || 'all');
         setSelectedCategory(preset.selectedCategory || 'all');
-        setSupplierFilter(preset.supplierFilter || []);
-        setBranchFilter(preset.branchFilter || []);
         setInvoiceFilter(preset.invoiceFilter || '');
         setContractFilter(preset.contractFilter || '');
-        setStatusFilter(preset.statusFilter || 'all');
         setSortOrder(preset.sortOrder || 'date_desc');
-        toast.success(`Preset "${preset.name}" applicato`);
-    }, [defaultStartDate, defaultEndDate]);
+        setStatusFilter(preset.statusFilter || 'all');
+        toast.success(`Preset \"${preset.name}\" applicato`);
+    }, [getDefaultStartDate, getDefaultEndDate]);
 
     const deletePreset = useCallback((id) => {
         setFilterPresets(prev => prev.filter(p => p.id !== id));
@@ -2423,8 +2542,10 @@ export default function ExpensesPage({
                         </div>
                     </div>
 
+
+
                     {/* Sezione Filtri */}
-                    <section className="relative z-20 rounded-3xl border border-white/80 bg-gradient-to-r from-slate-300/95 via-slate-100/90 to-white/90 px-4 py-5 shadow-[0_32px_72px_-38px_rgba(15,23,42,0.6)] backdrop-blur-2xl overflow-visible">
+                    <section className="relative z-20 rounded-3xl border border-white/80 bg-gradient-to-r from-slate-300/95 via-slate-100/90 to-white/90 px-4 py-5 backdrop-blur-2xl overflow-visible">
                         <div className="pointer-events-none absolute inset-0">
                             <div className="absolute -top-16 left-12 h-32 w-32 rounded-full bg-indigo-100/35 blur-3xl" />
                             <div className="absolute -bottom-20 right-10 h-36 w-36 rounded-full bg-slate-200/55 blur-3xl" />
@@ -2601,8 +2722,25 @@ export default function ExpensesPage({
                                 )}
                             </div>
                         </div>
+                        {/* Predefined Date Presets */}
+                        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-600">
+                                Filtri rapidi
+                            </span>
+                            {PREDEFINED_DATE_PRESETS.map(preset => (
+                                <button
+                                    key={preset.id}
+                                    type="button"
+                                    onClick={() => applyPreset(preset)}
+                                    className="inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 px-3 py-1.5 text-xs font-semibold text-orange-700 shadow-sm shadow-orange-100/60 transition-all hover:border-orange-300 hover:from-orange-100 hover:to-amber-100 hover:shadow-md"
+                                >
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    {preset.name}
+                                </button>
+                            ))}
+                        </div>
                         {filterPresets.length > 0 && (
-                            <div className="relative z-10 mt-2 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/70 bg-slate-50/85 px-4 py-3 shadow-inner shadow-slate-200/60 backdrop-blur">
+                            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                                 <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                                     Preset rapidi
                                 </span>
@@ -2639,6 +2777,7 @@ export default function ExpensesPage({
                             subtitle={isOperationsDomain ? 'Voci registrate per le sedi' : `${processedExpenses.length} spese filtrate`}
                             icon={<FileText className="w-6 h-6" />}
                             gradient="from-orange-500 to-amber-600"
+                            tooltip="Numero totale di voci di spesa filtrate."
                         />
                         <KpiCard
                             title="Importo Totale"
@@ -2646,6 +2785,7 @@ export default function ExpensesPage({
                             subtitle={isOperationsDomain ? 'Ripartite automaticamente per filiale' : `Budget: ${formatCurrency(kpiData.totalBudget)}`}
                             icon={<DollarSign className="w-6 h-6" />}
                             gradient="from-orange-600 to-amber-700"
+                            tooltip="Somma degli importi di tutte le spese filtrate."
                         />
                         {isOperationsDomain ? (
                             <>
@@ -2655,6 +2795,7 @@ export default function ExpensesPage({
                                     subtitle="Con costi registrati"
                                     icon={<MapPin className="w-6 h-6" />}
                                     gradient="from-orange-500 to-orange-600"
+                                    tooltip="Numero di filiali con almeno una spesa assegnata."
                                 />
                                 <KpiCard
                                     title="Spesa Media"
@@ -2662,6 +2803,7 @@ export default function ExpensesPage({
                                     subtitle="Per filiale attiva"
                                     icon={<Layers className="w-6 h-6" />}
                                     gradient="from-orange-500 to-orange-600"
+                                    tooltip="Importo medio speso per filiale attiva."
                                 />
                             </>
                         ) : (
@@ -2672,6 +2814,7 @@ export default function ExpensesPage({
                                     subtitle="Documenti fiscali"
                                     icon={<CheckCircle2 className="w-6 h-6" />}
                                     gradient="from-amber-400 to-yellow-500"
+                                    tooltip="Percentuale di spese con fattura allegata."
                                 />
                                 <KpiCard
                                     title="Complete"
@@ -2679,10 +2822,13 @@ export default function ExpensesPage({
                                     subtitle="Tutti i documenti"
                                     icon={<Activity className="w-6 h-6" />}
                                     gradient="from-orange-400 to-amber-500"
+                                    tooltip="Percentuale di spese con tutta la documentazione richiesta (fattura e contratto)."
                                 />
                             </>
                         )}
                     </div>
+
+
 
                     {!isOperationsDomain && (
                         <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
