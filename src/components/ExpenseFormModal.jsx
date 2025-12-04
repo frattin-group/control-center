@@ -4,11 +4,7 @@ import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@clerk/clerk-react';
 import axios from 'axios';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Imposta il worker per PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 import { COST_DOMAINS, DEFAULT_COST_DOMAIN } from '../constants/costDomains';
 
 // --- Componente MultiSelect ---
