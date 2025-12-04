@@ -680,7 +680,7 @@ export default function SettingsPage({ user }) {
                         </div>
                         {canAddOnActiveTab && (
                             <button
-                                onClick={handleOpenAddModal}
+                                onClick={handleQuickAdd}
                                 className="group relative inline-flex items-center gap-2 overflow-hidden rounded-2xl bg-white px-6 py-3 text-sm font-bold text-slate-900 shadow-lg transition-all hover:bg-indigo-50 hover:shadow-indigo-500/25 active:scale-95"
                             >
                                 <Plus className="h-5 w-5 transition-transform group-hover:rotate-90" />
