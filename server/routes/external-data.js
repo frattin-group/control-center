@@ -86,13 +86,16 @@ router.get('/monthly-employees', async (req, res) => {
             // Check historical costs
             if (emp.monthlyCostsByYear && emp.monthlyCostsByYear[targetYear]) {
                 const yearCosts = emp.monthlyCostsByYear[targetYear];
-                // Assuming yearCosts is an array of 12 numbers or an object keyed by month index (0-11 or 1-12)
-                // Let's assume standard array 0-11 based on common practices, but we need to be robust.
-                // If it's an object { "1": 1000, "2": ... }
+
                 if (Array.isArray(yearCosts)) {
+                    // If array, index is 0-11
                     cost = yearCosts[targetMonth - 1] || cost;
                 } else if (typeof yearCosts === 'object') {
-                    cost = yearCosts[targetMonth] || cost;
+                    // If object, keys are likely "01", "02", ... "12"
+                    // Ensure zero-padding for single digit months
+                    const monthKey = targetMonth < 10 ? `0${targetMonth}` : `${targetMonth}`;
+                    // Try both padded and unpadded just in case
+                    cost = yearCosts[monthKey] !== undefined ? yearCosts[monthKey] : (yearCosts[targetMonth] || cost);
                 }
             }
 
