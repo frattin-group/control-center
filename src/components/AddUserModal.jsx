@@ -5,17 +5,13 @@ import toast from 'react-hot-toast';
 export default function AddUserModal({ isOpen, onClose, onSave }) {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [role, setRole] = useState('collaborator');
 
     const handleSave = () => {
-        if (!name.trim() || !email.trim() || !password.trim()) {
+        if (!name.trim() || !email.trim()) {
             return toast.error("Tutti i campi sono obbligatori.");
         }
-        if (password.length < 6) {
-            return toast.error("La password deve essere di almeno 6 caratteri.");
-        }
-        onSave({ name, email, password, role });
+        onSave({ name, email, role });
     };
 
     if (!isOpen) return null;
@@ -29,8 +25,8 @@ export default function AddUserModal({ isOpen, onClose, onSave }) {
                             <Users className="h-5 w-5" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-black">Nuovo utente</h3>
-                            <p className="text-sm font-medium text-white/80">Crea un profilo e assegna immediatamente il ruolo operativo</p>
+                            <h3 className="text-xl font-black">Invita utente</h3>
+                            <p className="text-sm font-medium text-white/80">Invia un invito via email per accedere alla piattaforma</p>
                         </div>
                     </div>
                     <button
@@ -41,41 +37,31 @@ export default function AddUserModal({ isOpen, onClose, onSave }) {
                         <X className="h-4 w-4" />
                     </button>
                 </div>
-                
+
                 <div className="space-y-5 overflow-y-auto bg-white px-6 py-6">
                     <div className="space-y-2">
                         <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 block">Nome completo</label>
-                        <input 
-                            type="text" 
-                            value={name} 
-                            onChange={(e) => setName(e.target.value)} 
-                            className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm transition-all focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20" 
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm transition-all focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
                         />
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 block">Email</label>
-                        <input 
-                            type="email" 
-                            value={email} 
-                            onChange={(e) => setEmail(e.target.value)} 
-                            className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm transition-all focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20" 
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 block">Password</label>
-                        <input 
-                            type="password" 
-                            value={password} 
-                            onChange={(e) => setPassword(e.target.value)} 
-                            className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm transition-all focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20" 
-                            placeholder="Minimo 6 caratteri" 
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm transition-all focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
                         />
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 block">Ruolo</label>
-                        <select 
-                            value={role} 
-                            onChange={(e) => setRole(e.target.value)} 
+                        <select
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
                             className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm transition-all focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
                         >
                             <option value="collaborator">Collaborator</option>
@@ -91,12 +77,12 @@ export default function AddUserModal({ isOpen, onClose, onSave }) {
                     </div>
                     <div className="flex flex-col-reverse gap-3 sm:flex-row">
                         <button type="button" onClick={onClose} className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:border-slate-400 hover:bg-slate-100">Annulla</button>
-                        <button 
-                            type="button" 
-                            onClick={handleSave} 
+                        <button
+                            type="button"
+                            onClick={handleSave}
                             className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition-transform hover:-translate-y-[1px] hover:bg-slate-800"
                         >
-                            Crea utente
+                            Invia Invito
                         </button>
                     </div>
                 </div>

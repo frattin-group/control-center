@@ -55,61 +55,50 @@ exports.createUser = async (req, res) => {
 
 exports.createUserWithAuth = async (req, res) => {
     try {
-        const { email, name, role, assignedChannels, password } = req.body;
+        const { email, name, role, assignedChannels } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email and Password are required' });
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
         }
 
-        // 1. Create user in Clerk
-        let clerkUser;
+        // 1. Create Invitation in Clerk
+        let invitation;
         try {
-            clerkUser = await clerkClient.users.createUser({
-                emailAddress: [email],
-                password,
-                firstName: name,
-                publicMetadata: { role }
+            invitation = await clerkClient.invitations.createInvitation({
+                emailAddress: email,
+                publicMetadata: {
+                    role,
+                    assignedChannels: assignedChannels || []
+                },
+                redirectUrl: 'https://www.thefluxdata.app/sign-in' // Optional: redirect after acceptance
             });
         } catch (clerkError) {
-            console.error("Clerk creation error:", clerkError);
+            console.error("Clerk invitation error:", clerkError);
             if (clerkError.errors && clerkError.errors[0]?.code === 'form_identifier_exists') {
-                return res.status(409).json({ error: 'Email already exists in Clerk' });
+                // If user already exists, we can't invite them.
+                // But maybe we want to return success if they are already in the system?
+                // Or return a specific error.
+                return res.status(409).json({ error: 'User already exists in Clerk' });
             }
             throw clerkError;
         }
 
-        // 2. Create user in Neon (Prisma)
-        try {
-            const user = await prisma.user.create({
-                data: {
-                    id: clerkUser.id,
-                    email,
-                    name: name || email.split('@')[0],
-                    role: role || 'collaborator',
-                    assignedSuppliers: {
-                        create: (assignedChannels || []).map(supplierId => ({ supplierId }))
-                    }
-                },
-                include: { assignedSuppliers: true }
-            });
+        // We do NOT create the user in Prisma here anymore.
+        // The user will be created (or updated) by the webhook when they accept the invitation.
 
-            res.json({
-                status: 'success',
-                data: {
-                    ...user,
-                    assignedChannels: user.assignedSuppliers.map(as => as.supplierId)
-                }
-            });
-        } catch (dbError) {
-            console.error("DB creation error:", dbError);
-            // Rollback Clerk user if DB fails (optional but recommended)
-            await clerkClient.users.deleteUser(clerkUser.id);
-            return res.status(500).json({ error: 'Error creating user in database' });
-        }
+        res.json({
+            status: 'success',
+            message: 'Invitation sent',
+            data: {
+                id: invitation.id,
+                email: invitation.emailAddress,
+                status: invitation.status
+            }
+        });
 
     } catch (error) {
-        console.error("Error in createUserWithAuth:", error);
-        res.status(500).json({ error: error.message || 'Internal server error' });
+        console.error("Error inviting user:", error);
+        res.status(500).json({ error: error.message || 'Error inviting user' });
     }
 };
 

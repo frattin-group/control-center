@@ -322,19 +322,18 @@ export default function SettingsPage({ user }) {
     };
 
     const handleCreateUser = async (userData) => {
-        const toastId = toast.loading("Creazione utente...");
+        const toastId = toast.loading("Invio invito...");
         try {
-            // Call Node.js backend to create user in Clerk and Neon
+            // Call Node.js backend to invite user via Clerk
             const response = await axios.post('/api/users/create-with-auth', {
                 email: userData.email,
-                password: userData.password, // Ensure password is passed from the form
                 name: userData.name,
                 role: userData.role,
                 assignedChannels: userData.assignedChannels
             });
 
             if (response.data.status === 'success') {
-                toast.success("Utente creato!", { id: toastId });
+                toast.success("Invito inviato!", { id: toastId });
                 handleCloseModal();
                 fetchData();
             } else {

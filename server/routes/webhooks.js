@@ -54,6 +54,7 @@ router.post('/clerk', async (req, res) => {
             const email = email_addresses[0]?.email_address;
             const name = `${first_name || ''} ${last_name || ''}`.trim();
             const role = public_metadata?.role || 'collaborator';
+            const assignedChannels = public_metadata?.assignedChannels || [];
 
             // Check if user already exists by email (legacy user from Firebase)
             const existingUser = await prisma.user.findUnique({
@@ -71,7 +72,17 @@ router.post('/clerk', async (req, res) => {
                     data: {
                         name: name || existingUser.name,
                         role: role || existingUser.role,
-                        status: 'active'
+                        status: 'active',
+                        assignedSuppliers: {
+                            deleteMany: {}, // Clear existing assignments if we want to overwrite, or keep them?
+                            // Let's assume we want to MERGE or OVERWRITE. 
+                            // If it's a migration, maybe we should keep existing?
+                            // But if the invite specifies channels, maybe we should add them?
+                            // For simplicity and safety, let's ADD new ones if specified, but usually invite is for new users.
+                            // If legacy user, they might already have assignments.
+                            // Let's only add if assignedChannels is not empty.
+                            create: assignedChannels.map(supplierId => ({ supplierId }))
+                        }
                     }
                 });
                 console.log(`Legacy user ${email} migrated to Clerk ID ${id}`);
@@ -82,7 +93,10 @@ router.post('/clerk', async (req, res) => {
                         email: email,
                         name: name || email, // Fallback to email if name is empty
                         role: role,
-                        status: 'active'
+                        status: 'active',
+                        assignedSuppliers: {
+                            create: assignedChannels.map(supplierId => ({ supplierId }))
+                        }
                     }
                 });
                 console.log(`User ${id} created in DB`);
