@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import axios from 'axios';
-import { getStorage, ref, getDownloadURL, deleteObject } from "firebase/storage";
 import {
     PlusCircle, Search, Wallet, Car, Sailboat, Caravan, Building2, Layers, MapPin,
     DollarSign, FileText, Paperclip, Copy, Pencil, Trash2, AlertTriangle, CheckCircle2,

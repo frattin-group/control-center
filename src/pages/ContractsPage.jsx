@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { getStorage, ref, getDownloadURL, deleteObject } from "firebase/storage";
+```
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import axios from 'axios';
 
@@ -47,8 +47,8 @@ const formatCurrency = (number) => {
 
 const formatCompactCurrency = (value) => {
     const abs = Math.abs(value);
-    if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1000) return `${Math.round(value / 1000)}k`;
+    if (abs >= 1_000_000) return `${ (value / 1_000_000).toFixed(1) } M`;
+    if (abs >= 1000) return `${ Math.round(value / 1000) } k`;
     return value.toFixed(0);
 };
 
@@ -104,15 +104,15 @@ const ProgressBar = ({ spentPercentage = 0, overduePercentage = 0 }) => {
                 <>
                     <div
                         className="absolute inset-y-0 left-0 z-[1] rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 transition-all duration-500 ease-out"
-                        style={{ width: `${spentWidth}%` }}
+                        style={{ width: `${ spentWidth }% ` }}
                     />
 
                     {overdueWidth > 0 && (
                         <div
                             className="absolute inset-y-0 z-[2] rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 transition-all duration-500 ease-out"
                             style={{
-                                left: `${spentWidth}%`,
-                                width: `${overdueWidth}%`
+                                left: `${ spentWidth }% `,
+                                width: `${ overdueWidth }% `
                             }}
                         />
                     )}
@@ -180,8 +180,9 @@ const ContractsTableView = ({
                                         <button
                                             type="button"
                                             onClick={() => handleSort(column.key)}
-                                            className={`flex w-full items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/90 transition-colors hover:text-white ${isRightAligned ? 'justify-end' : 'justify-start'
-                                                }`}
+                                            className={`flex w - full items - center gap - 2 text - xs font - bold uppercase tracking - [0.16em] text - white / 90 transition - colors hover: text - white ${
+    isRightAligned ? 'justify-end' : 'justify-start'
+} `}
                                         >
                                             <span>{column.label}</span>
                                             <SortIndicatorIcon
@@ -213,8 +214,8 @@ const ContractsTableView = ({
                             const progressLabel = Number.isFinite(totalPercentage)
                                 ? (
                                     hasMeaningfulOverdue
-                                        ? `${Math.round(spentPercentage)}% + ${Math.round(overduePercentage)}%`
-                                        : `${Math.round(totalPercentage)}%`
+                                        ? `${ Math.round(spentPercentage) }% + ${ Math.round(overduePercentage) }% `
+                                        : `${ Math.round(totalPercentage) }% `
                                 )
                                 : 'N/D';
                             const supplierDisplayName = contract.supplierName || supplierMap.get(contract.supplierId) || 'N/D';
@@ -223,9 +224,9 @@ const ContractsTableView = ({
 
                             return (
                                 <tr key={contract.id} className={`
-                                    hover:bg-blue-50/40 transition-colors
-                                    ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
-                                `}>
+hover: bg - blue - 50 / 40 transition - colors
+                                    ${ index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60' }
+`}>
                                     <td className="px-5 py-4">
                                         <div className="min-w-0">
                                             <p className="max-w-[220px] truncate text-sm font-semibold text-slate-900">
@@ -256,7 +257,7 @@ const ContractsTableView = ({
                                                     overduePercentage={overduePercentage}
                                                 />
                                             </div>
-                                            <span className={`inline-flex items-center gap-1 text-xs font-semibold ${isOverrun ? 'text-rose-600' : 'text-slate-700'}`}>
+                                            <span className={`inline - flex items - center gap - 1 text - xs font - semibold ${ isOverrun ? 'text-rose-600' : 'text-slate-700' } `}>
                                                 {isOverrun && <AlertTriangle className="h-3.5 w-3.5" />}
                                                 {progressLabel}
                                             </span>
@@ -348,7 +349,7 @@ const DateRangeFilter = ({
     };
 
     const dateRangeLabel = (dateFilter.startDate && dateFilter.endDate)
-        ? `${formatDateLabel(dateFilter.startDate)} → ${formatDateLabel(dateFilter.endDate)}`
+        ? `${ formatDateLabel(dateFilter.startDate) } → ${ formatDateLabel(dateFilter.endDate) } `
         : 'Seleziona periodo';
 
     const isHeroStyle = variant === 'hero';
@@ -379,14 +380,14 @@ const DateRangeFilter = ({
                     setIsAdvancedPanelOpen(false);
                 }}
                 aria-expanded={isOpen}
-                className={`${buttonBaseClasses} ${ringClass}`}
+                className={`${ buttonBaseClasses } ${ ringClass } `}
             >
                 <Calendar className={calendarIconClass} />
                 <span className="whitespace-nowrap">
                     {dateRangeLabel}
                 </span>
                 <ArrowUpDown
-                    className={`${arrowIconClass} transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                    className={`${ arrowIconClass } transition - transform duration - 200 ${ isOpen ? 'rotate-180' : '' } `}
                 />
             </button>
             {isOpen && (
@@ -628,12 +629,12 @@ export default function ContractsPage({ user }) {
         setIsLoading(true);
         try {
             const token = await getToken();
-            const headers = { 'Authorization': `Bearer ${token}` };
+            const headers = { 'Authorization': `Bearer ${ token } ` };
 
             const [contractsRes, expensesRes, initialDataRes] = await Promise.all([
                 axios.get('/api/contracts', { headers }),
                 axios.get('/api/expenses', { headers }),
-                axios.get(`/api/data/initial-data?year=${new Date().getFullYear()}`, { headers })
+                axios.get(`/ api / data / initial - data ? year = ${ new Date().getFullYear() } `, { headers })
             ]);
 
             const contractsData = contractsRes.data;
@@ -693,7 +694,7 @@ export default function ContractsPage({ user }) {
         let filtered = allContracts.map(contract => {
             const rawLineItems = Array.isArray(contract.lineItems) ? contract.lineItems : [];
             const normalizedLineItems = rawLineItems.map((item, index) => {
-                const normalizedId = item.id || item._key || `${contract.id}-line-${index}`;
+                const normalizedId = item.id || item._key || `${ contract.id } -line - ${ index } `;
                 return { ...item, _normalizedId: normalizedId };
             });
 
@@ -1099,7 +1100,7 @@ export default function ContractsPage({ user }) {
                 key: 'total',
                 title: 'Contratti Totali',
                 value: contractStats.total.toString(),
-                subtitle: `${contractStats.active} attivi`,
+                subtitle: `${ contractStats.active } attivi`,
                 icon: <FileSignature className="w-6 h-6" />,
                 gradient: 'from-blue-500 to-indigo-600',
                 tooltip: 'Numero totale di contratti monitorati.'
@@ -1117,7 +1118,7 @@ export default function ContractsPage({ user }) {
                 key: 'spent',
                 title: 'Importo Speso',
                 value: formatCurrency(contractStats.totalSpent),
-                subtitle: `+ Scaduto ${formatCurrency(contractStats.totalOverdue)}`,
+                subtitle: `+ Scaduto ${ formatCurrency(contractStats.totalOverdue) } `,
                 icon: <Target className="w-6 h-6" />,
                 gradient: 'from-indigo-500 to-blue-700',
                 tooltip: 'Somma degli importi già spesi o scaduti.'
@@ -1126,7 +1127,7 @@ export default function ContractsPage({ user }) {
                 key: 'residual',
                 title: 'Residuo Netto',
                 value: formatCurrency(contractStats.totalResidual),
-                subtitle: contractStats.overrun > 0 ? `${contractStats.overrun} sforati` : 'budget disponibile',
+                subtitle: contractStats.overrun > 0 ? `${ contractStats.overrun } sforati` : 'budget disponibile',
                 icon: <CheckCircle className="w-6 h-6" />,
                 gradient: contractStats.overrun > 0 ? 'from-rose-500 to-red-600' : 'from-emerald-500 to-green-600',
                 tooltip: 'Budget residuo disponibile sui contratti.'
@@ -1144,852 +1145,852 @@ export default function ContractsPage({ user }) {
 
             const year = date.getFullYear();
             const month = date.getMonth();
-            const key = `${year}-${month}`;
+            const key = `${ year } -${ month } `;
 
             if (!monthMap.has(key)) {
                 monthMap.set(key, {
                     sortKey: year * 100 + month,
-                    label: `${MONTH_NAMES_IT[month]} '${String(year).slice(-2)}`,
-                    fullLabel: `${MONTH_NAMES_IT[month]} ${year}`,
-                    spend: 0,
-                    overdue: 0,
-                    total: 0
+                    label: `${ MONTH_NAMES_IT[month] } '${String(year).slice(-2)}`,
+fullLabel: `${MONTH_NAMES_IT[month]} ${year}`,
+    spend: 0,
+        overdue: 0,
+            total: 0
                 });
             }
 
-            const bucket = monthMap.get(key);
-            bucket.spend += contract.spentAmount || 0;
-            bucket.overdue += contract.overdueAmount || 0;
-            bucket.total += contract.totalAmount || 0;
+const bucket = monthMap.get(key);
+bucket.spend += contract.spentAmount || 0;
+bucket.overdue += contract.overdueAmount || 0;
+bucket.total += contract.totalAmount || 0;
         });
 
-        return Array.from(monthMap.values())
-            .sort((a, b) => a.sortKey - b.sortKey)
-            .slice(-12);
+return Array.from(monthMap.values())
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .slice(-12);
     }, [processedContracts]);
 
-    const contractsTrendSummary = useMemo(() => {
-        if (contractsTrendData.length === 0) return [];
-        return [...contractsTrendData].slice(-4).reverse();
-    }, [contractsTrendData]);
+const contractsTrendSummary = useMemo(() => {
+    if (contractsTrendData.length === 0) return [];
+    return [...contractsTrendData].slice(-4).reverse();
+}, [contractsTrendData]);
 
-    const contractSectorDistribution = useMemo(() => {
-        const totals = new Map();
+const contractSectorDistribution = useMemo(() => {
+    const totals = new Map();
 
-        processedContracts.forEach(contract => {
-            const effectiveAmount = (() => {
-                const spend = (contract.spentAmount || 0) + (contract.overdueAmount || 0);
-                if (spend > 0) return spend;
-                return contract.totalAmount || 0;
-            })();
+    processedContracts.forEach(contract => {
+        const effectiveAmount = (() => {
+            const spend = (contract.spentAmount || 0) + (contract.overdueAmount || 0);
+            if (spend > 0) return spend;
+            return contract.totalAmount || 0;
+        })();
 
-            if (effectiveAmount <= 0) return;
+        if (effectiveAmount <= 0) return;
 
-            const sectorsList = Array.isArray(contract.effectiveSectors) && contract.effectiveSectors.length > 0
-                ? contract.effectiveSectors
-                : ['unassigned'];
+        const sectorsList = Array.isArray(contract.effectiveSectors) && contract.effectiveSectors.length > 0
+            ? contract.effectiveSectors
+            : ['unassigned'];
 
-            const share = effectiveAmount / sectorsList.length;
-            sectorsList.forEach(sectorId => {
-                const key = sectorId || 'unassigned';
-                totals.set(key, (totals.get(key) || 0) + share);
-            });
+        const share = effectiveAmount / sectorsList.length;
+        sectorsList.forEach(sectorId => {
+            const key = sectorId || 'unassigned';
+            totals.set(key, (totals.get(key) || 0) + share);
         });
+    });
 
-        return Array.from(totals.entries())
-            .map(([sectorId, value], index) => {
-                const name = sectorId === 'unassigned'
-                    ? 'Non classificato'
-                    : (sectorMap.get(sectorId) || 'Non classificato');
-                return {
-                    id: sectorId,
-                    name,
-                    value,
-                    color: getSectorColor(name, index)
-                };
-            })
-            .filter(entry => entry.value > 0)
-            .sort((a, b) => b.value - a.value);
-    }, [processedContracts, sectorMap]);
-
-    const contractSectorTotal = useMemo(
-        () => contractSectorDistribution.reduce((sum, entry) => sum + entry.value, 0),
-        [contractSectorDistribution]
-    );
-
-    const renderContractsTrendTooltip = useCallback(({ active, payload }) => {
-        if (!active || !payload || payload.length === 0) return null;
-        const data = payload[0]?.payload;
-        if (!data) return null;
-        const spendEntry = payload.find(item => item.dataKey === 'spend');
-        const overdueEntry = payload.find(item => item.dataKey === 'overdue');
-
-        return (
-            <div className={getTooltipContainerClass('blue')}>
-                <p className="text-sm font-bold text-slate-900">
-                    {data.fullLabel}
-                </p>
-                <div className="mt-2 space-y-1 text-xs font-semibold text-slate-600">
-                    <div className="flex items-center justify-between gap-6">
-                        <span className="flex items-center gap-2 text-blue-600">
-                            <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
-                            Speso
-                        </span>
-                        <span>{formatCurrency(spendEntry?.value || 0)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-6">
-                        <span className="flex items-center gap-2 text-amber-600">
-                            <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
-                            Scaduto
-                        </span>
-                        <span>{formatCurrency(overdueEntry?.value || 0)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-6 border-t border-slate-100 pt-2">
-                        <span className="text-slate-500">Valore contratti</span>
-                        <span className="text-slate-900">{formatCurrency(data.total || 0)}</span>
-                    </div>
-                </div>
-            </div>
-        );
-    }, []);
-
-    const renderContractsSectorTooltip = useCallback(({ active, payload }) => {
-        if (!active || !payload || payload.length === 0) return null;
-        const data = payload[0]?.payload;
-        if (!data) return null;
-        const percentage = contractSectorTotal > 0
-            ? ((data.value / contractSectorTotal) * 100).toFixed(1)
-            : '0.0';
-
-        return (
-            <div className={getTooltipContainerClass('blue')}>
-                <p className="text-sm font-bold text-slate-900">{data.name}</p>
-                <p className="text-xs font-semibold text-slate-600 mt-1">
-                    {formatCurrency(data.value)} · {percentage}%
-                </p>
-            </div>
-        );
-    }, [contractSectorTotal]);
-
-    const handleOpenAddModal = () => { setEditingContract(null); setIsModalOpen(true); };
-    const handleOpenEditModal = (contract) => { setEditingContract(contract); setIsModalOpen(true); };
-    const handleCloseModal = () => { setIsModalOpen(false); setEditingContract(null); };
-    const handleSaveContract = async (formData, contractFile) => {
-        const isEditing = !!formData.id;
-        const toastId = toast.loading(isEditing ? 'Aggiornamento...' : 'Salvataggio...');
-        try {
-            const { _key, ...cleanFormData } = formData;
-
-            // Upload file if present
-            let fileURL = cleanFormData.contractPdfUrl || "";
-            if (contractFile) {
-                const formData = new FormData();
-                formData.append('file', contractFile);
-                const token = await getToken();
-                const uploadRes = await axios.post('/api/upload', formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                fileURL = uploadRes.data.url;
-            }
-
-            const payload = {
-                ...cleanFormData,
-                supplierId: cleanFormData.supplierld || cleanFormData.supplierId, // Map back to API field
-                contractPdfUrl: fileURL,
-                amount: parseFloat(String(cleanFormData.totalAmount || 0).replace(',', '.')), // Ensure amount is float if needed
-                lineItems: cleanFormData.lineItems.map(item => ({
-                    ...item,
-                    totalAmount: parseFloat(String(item.totalAmount).replace(',', '.')) || 0,
-                    sectorId: item.sectorld || item.sectorId, // Map back to API field
-                    branchId: item.branchld || item.branchId      // Map back to API field
-                }))
+    return Array.from(totals.entries())
+        .map(([sectorId, value], index) => {
+            const name = sectorId === 'unassigned'
+                ? 'Non classificato'
+                : (sectorMap.get(sectorId) || 'Non classificato');
+            return {
+                id: sectorId,
+                name,
+                value,
+                color: getSectorColor(name, index)
             };
+        })
+        .filter(entry => entry.value > 0)
+        .sort((a, b) => b.value - a.value);
+}, [processedContracts, sectorMap]);
 
-            const url = isEditing ? `/api/contracts/${formData.id}` : '/api/contracts';
-            const token = await getToken();
-            const headers = { 'Authorization': `Bearer ${token}` };
+const contractSectorTotal = useMemo(
+    () => contractSectorDistribution.reduce((sum, entry) => sum + entry.value, 0),
+    [contractSectorDistribution]
+);
 
-            if (isEditing) {
-                await axios.put(url, payload, { headers });
-            } else {
-                await axios.post(url, payload, { headers });
-            }
-
-
-
-            toast.success(isEditing ? 'Contratto aggiornato!' : 'Contratto creato!', { id: toastId });
-            handleCloseModal();
-            fetchData(); // Refresh data
-        } catch (error) {
-            console.error("Errore nel salvare il contratto:", error);
-            toast.error(error.message || 'Errore imprevisto.', { id: toastId });
-        }
-    };
-
-    const handleDeleteContract = async (contract) => {
-        if (!window.confirm(`Sei sicuro di voler eliminare il contratto "${contract.description}"?`)) return;
-        const toastId = toast.loading("Eliminazione in corso...");
-        try {
-            if (contract.contractPdfUrl) {
-                const fileRef = ref(storage, contract.contractPdfUrl);
-                await deleteObject(fileRef).catch(err => console.warn("File non trovato:", err));
-            }
-
-            const token = await getToken();
-            await axios.delete(`/api/contracts/${contract.id}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            toast.success("Contratto eliminato!", { id: toastId });
-            fetchData(); // Refresh data
-        } catch (error) {
-            console.error("Errore durante l'eliminazione:", error);
-            toast.error("Errore durante l'eliminazione.", { id: toastId });
-        }
-    };
-
-    const resetFilters = () => {
-        setSearchTerm('');
-        setSelectedBranch('all');
-        setSelectedSector('all');
-        setDateFilter({ startDate: '', endDate: '' }); // Reset to empty (all time)
-        setContractAdvancedFilter('');
-        setIsAdvancedPanelOpen(false);
-        setIsFiltersPresetPanelOpen(false);
-        setIsDateDropdownOpen(false);
-        setPresetName('');
-        toast.success("Filtri resettati!");
-    };
-
-    const trimmedSearchTerm = searchTerm.trim();
-    const hasActiveFilters = Boolean(
-        trimmedSearchTerm ||
-        selectedBranch !== 'all' ||
-        selectedSector !== 'all' ||
-        hasCustomDateRange ||
-        contractAdvancedFilter
-    );
-    const overrunContracts = processedContracts
-        .filter(c => c.progress > 100)
-        .map(c => ({
-            ...c,
-            budgetOverrun: Math.max(0, (c.spentAmount + (c.overdueAmount || 0)) - c.totalAmount)
-        }));
-    const totalOverrunAmount = overrunContracts.reduce((sum, c) => sum + (c.budgetOverrun || 0), 0);
-    const notificationCount = overrunContracts.length;
-    useEffect(() => {
-        if (notificationCount === 0 && isNotificationsPanelOpen) {
-            setIsNotificationsPanelOpen(false);
-        }
-    }, [notificationCount, isNotificationsPanelOpen]);
-
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-                <div className="text-center space-y-4">
-                    <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <div className="text-xl font-semibold text-gray-700">Caricamento contratti...</div>
-                </div>
-            </div>
-        );
-    }
+const renderContractsTrendTooltip = useCallback(({ active, payload }) => {
+    if (!active || !payload || payload.length === 0) return null;
+    const data = payload[0]?.payload;
+    if (!data) return null;
+    const spendEntry = payload.find(item => item.dataKey === 'spend');
+    const overdueEntry = payload.find(item => item.dataKey === 'overdue');
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative">
-            <div className="relative p-4 lg:p-8 space-y-6">
-                {/* Hero */}
-                <div className="space-y-6">
-                    <div className="relative rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-sky-600 text-white shadow-2xl border border-white/20 p-6 lg:p-10">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.3),transparent_55%)]" />
-                        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="space-y-4 lg:max-w-3xl">
-                                <div className="flex items-center gap-4">
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-white shadow-lg shadow-blue-900/30 ring-4 ring-white/20">
-                                        <FileSignature className="w-7 h-7" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs uppercase tracking-[0.4em] text-white/70 font-semibold">Contratti</p>
-                                        <h1 className="text-3xl lg:text-4xl xl:text-5xl font-black leading-tight">Gestione Contratti</h1>
-                                    </div>
-                                </div>
-                                <p className="text-sm lg:text-base text-white/85 max-w-3xl">
-                                    Monitora accordi e impegni con i fornitori mantenendo un'esperienza coerente con dashboard, spese e budget.
-                                </p>
-                            </div>
-                            <div className="flex w-full flex-col gap-4 lg:ml-auto lg:w-auto lg:max-w-4xl">
-                                {notificationCount > 0 && (
-                                    <div className="flex flex-col items-end gap-3 w-full">
-                                        <div className="relative w-full">
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsNotificationsPanelOpen((prev) => !prev)}
-                                                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-white/30 px-4 py-2 text-sm font-semibold shadow-lg shadow-blue-900/30 backdrop-blur-sm transition-all bg-white/15 text-white hover:bg-white/25"
-                                            >
-                                                <Bell className="w-4 h-4" />
-                                                Notifiche
-                                                <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white/90 px-2 text-xs font-bold text-blue-600">
-                                                    {notificationCount}
-                                                </span>
-                                            </button>
-                                            {isNotificationsPanelOpen && (
-                                                <>
-                                                    <div
-                                                        className="fixed inset-0 z-40"
-                                                        onClick={() => setIsNotificationsPanelOpen(false)}
-                                                    />
-                                                    <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-[calc(100vw-3rem)] max-w-xs rounded-3xl border border-white/40 bg-white/95 p-5 shadow-2xl shadow-blue-900/30 backdrop-blur sm:w-80 space-y-3">
-                                                        {overrunContracts.length > 0 ? (
-                                                            <>
-                                                                <div className="flex items-start justify-between gap-3">
-                                                                    <div>
-                                                                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-500">
-                                                                            Contratti oltre budget
-                                                                        </p>
-                                                                        <h3 className="text-sm font-black text-slate-900">
-                                                                            {formatCurrency(totalOverrunAmount)}
-                                                                        </h3>
-                                                                    </div>
-                                                                    <span className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-600">
-                                                                        <AlertTriangle className="h-4 w-4" />
-                                                                        {overrunContracts.length}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
-                                                                    {overrunContracts.map(contract => (
-                                                                        <div
-                                                                            key={contract.id}
-                                                                            className="flex items-center justify-between rounded-2xl border border-rose-100/80 bg-white px-3 py-2 shadow-sm shadow-rose-100/50"
-                                                                        >
-                                                                            <div className="flex flex-col">
-                                                                                <span className="text-xs font-semibold text-slate-700">
-                                                                                    {supplierMap.get(contract.supplierId) || 'N/D'}
-                                                                                </span>
-                                                                                <span className="text-[11px] font-semibold text-rose-500">
-                                                                                    +{(contract.progress - 100).toFixed(1)}%
-                                                                                </span>
-                                                                            </div>
-                                                                            <span className="text-xs font-bold text-slate-900">
-                                                                                {formatCurrency(contract.budgetOverrun || 0)}
-                                                                            </span>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <p className="text-sm font-semibold text-slate-600">
-                                                                Nessuna notifica disponibile.
-                                                            </p>
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setIsNotificationsPanelOpen(false)}
-                                                            className="w-full rounded-xl border border-blue-200 bg-blue-50 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-blue-600 transition hover:bg-blue-100"
-                                                        >
-                                                            Chiudi notifiche
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                                <div className="flex flex-col items-end gap-3 w-full">
-                                    <button
-                                        type="button"
-                                        onClick={handleOpenAddModal}
-                                        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-white/15 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/30 backdrop-blur-sm transition-all hover:bg-white/25"
-                                    >
-                                        <PlusCircle className="w-4 h-4" />
-                                        Nuovo contratto
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <div className={getTooltipContainerClass('blue')}>
+            <p className="text-sm font-bold text-slate-900">
+                {data.fullLabel}
+            </p>
+            <div className="mt-2 space-y-1 text-xs font-semibold text-slate-600">
+                <div className="flex items-center justify-between gap-6">
+                    <span className="flex items-center gap-2 text-blue-600">
+                        <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
+                        Speso
+                    </span>
+                    <span>{formatCurrency(spendEntry?.value || 0)}</span>
                 </div>
-                {/* Sezione Filtri */}
-                <section className="relative z-20 rounded-3xl border border-white/80 bg-gradient-to-r from-slate-300/95 via-slate-100/90 to-white/90 px-4 py-5 backdrop-blur-2xl overflow-visible">
-                    <div className="pointer-events-none absolute inset-0">
-                        <div className="absolute -top-16 left-12 h-32 w-32 rounded-full bg-indigo-100/35 blur-3xl" />
-                        <div className="absolute -bottom-20 right-10 h-36 w-36 rounded-full bg-slate-200/55 blur-3xl" />
-                    </div>
-                    <div className="relative z-10 flex flex-wrap lg:flex-nowrap items-center justify-center gap-3 lg:gap-4 w-full max-w-6xl mx-auto">
-                        <div className="flex min-w-[220px] items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-slate-700 shadow-sm shadow-slate-200/80 backdrop-blur">
-                            <Search className="h-4 w-4 text-slate-700" />
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(event) => setSearchTerm(event.target.value)}
-                                placeholder="Ricerca libera"
-                                className="w-full bg-transparent text-sm font-semibold text-slate-700 placeholder:text-slate-600 focus:outline-none"
-                            />
-                        </div>
-                        <DateRangeFilter
-                            isOpen={isDateDropdownOpen}
-                            setIsOpen={setIsDateDropdownOpen}
-                            dateFilter={dateFilter}
-                            setDateFilter={setDateFilter}
-                            hasDateRange={hasCustomDateRange}
-                            setIsPresetPanelOpen={setIsFiltersPresetPanelOpen}
-                            setIsAdvancedPanelOpen={setIsAdvancedPanelOpen}
-                        />
-                        <div className="flex min-w-[200px] items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-slate-700 shadow-sm shadow-slate-200/80 backdrop-blur">
-                            <Layers className="h-4 w-4 text-slate-600" />
-                            <select
-                                value={selectedSector}
-                                onChange={(event) => setSelectedSector(event.target.value)}
-                                className="w-full bg-transparent text-sm font-semibold text-slate-700 focus:outline-none"
-                            >
-                                <option value="all">Tutti i settori</option>
-                                {Array.from(sectorMap.entries()).map(([id, name]) => (
-                                    <option key={id} value={id}>
-                                        {name || 'N/D'}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="flex min-w-[200px] items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-slate-700 shadow-sm shadow-slate-200/80 backdrop-blur">
-                            <MapPin className="h-4 w-4 text-slate-600" />
-                            <select
-                                value={selectedBranch}
-                                onChange={(event) => setSelectedBranch(event.target.value)}
-                                className="w-full bg-transparent text-sm font-semibold text-slate-700 focus:outline-none"
-                            >
-                                <option value="all">Tutte le filiali</option>
-                                {orderedBranches.map((branch) => (
-                                    <option key={branch.id} value={branch.id}>
-                                        {branch.name || 'N/D'}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="relative">
-                            {isAdvancedPanelOpen && (
-                                <div className="fixed inset-0 z-[210]" onClick={() => setIsAdvancedPanelOpen(false)} />
-                            )}
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsAdvancedPanelOpen(prev => !prev);
-                                    setIsFiltersPresetPanelOpen(false);
-                                    setIsDateDropdownOpen(false);
-                                }}
-                                aria-expanded={isAdvancedPanelOpen}
-                                className={`inline-flex items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-200/80 backdrop-blur transition hover:border-indigo-200 hover:text-indigo-600 ${contractAdvancedFilter ? 'ring-2 ring-indigo-100' : ''
-                                    }`}
-                            >
-                                <Filter className="h-4 w-4 text-slate-500" />
-                                <span className="whitespace-nowrap">Filtri avanzati</span>
-                                <ArrowUpDown
-                                    className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isAdvancedPanelOpen ? 'rotate-180' : ''}`}
-                                />
-                            </button>
-                            {isAdvancedPanelOpen && (
-                                <div className="absolute right-0 top-[calc(100%+0.75rem)] z-[220] w-[calc(100vw-3rem)] max-w-xs rounded-3xl border border-white/70 bg-white/95 p-5 shadow-2xl shadow-slate-900/15 backdrop-blur space-y-3">
-                                    <div>
-                                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                                            Stato documentale
-                                        </p>
-                                        <p className="text-xs font-medium text-slate-500">
-                                            Limita l'elenco in base allo stato dei contratti.
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {CONTRACT_ADVANCED_FILTERS.map(option => {
-                                            const active = contractAdvancedFilter === option.key;
-                                            return (
-                                                <button
-                                                    key={option.key || 'all'}
-                                                    type="button"
-                                                    onClick={() => setContractAdvancedFilter(option.key)}
-                                                    className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${active
-                                                        ? 'bg-gradient-to-r from-indigo-600 to-purple-500 text-white shadow-lg shadow-indigo-500/25'
-                                                        : 'border border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-600'
-                                                        }`}
-                                                >
-                                                    {option.label}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <button
-                                            type="button"
-                                            onClick={() => setContractAdvancedFilter('')}
-                                            className="text-xs font-semibold text-indigo-500 transition hover:text-rose-500"
-                                        >
-                                            Pulisci
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsAdvancedPanelOpen(false)}
-                                            className="inline-flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600 transition hover:border-indigo-200 hover:bg-indigo-100"
-                                        >
-                                            <Check className="h-3.5 w-3.5" />
-                                            Chiudi
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="relative flex flex-row items-center gap-3">
-                            {isFiltersPresetPanelOpen && (
-                                <div
-                                    className="fixed inset-0 z-[210]"
-                                    onClick={() => setIsFiltersPresetPanelOpen(false)}
-                                />
-                            )}
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsFiltersPresetPanelOpen(prev => !prev);
-                                    setIsAdvancedPanelOpen(false);
-                                    setIsDateDropdownOpen(false);
-                                }}
-                                aria-expanded={isFiltersPresetPanelOpen}
-                                className={`inline-flex items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-200/80 backdrop-blur transition hover:border-indigo-200 hover:text-indigo-600 ${isFiltersPresetPanelOpen ? 'ring-2 ring-indigo-100' : ''
-                                    }`}
-                            >
-                                <SlidersHorizontal className="h-4 w-4 text-slate-500" />
-                                Preset
-                            </button>
-                            {hasActiveFilters && (
-                                <button
-                                    type="button"
-                                    onClick={resetFilters}
-                                    className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm shadow-rose-100/60 transition hover:border-rose-300 whitespace-nowrap"
-                                >
-                                    <X className="w-3.5 h-3.5 text-rose-500" />
-                                    Resetta filtri
-                                </button>
-                            )}
-                            {isFiltersPresetPanelOpen && (
-                                <div className="absolute right-0 top-[calc(100%+0.75rem)] z-[220] w-[calc(100vw-3rem)] max-w-xs rounded-3xl border border-white/70 bg-white/95 p-5 shadow-2xl shadow-slate-900/15 backdrop-blur sm:w-80 space-y-3">
-                                    <div>
-                                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                                            Preset salvati
-                                        </p>
-                                        <p className="text-xs font-medium text-slate-500">
-                                            Salva e riutilizza combinazioni di filtri condivise.
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-col gap-2 sm:flex-row">
-                                        <input
-                                            type="text"
-                                            value={presetName}
-                                            onChange={(event) => setPresetName(event.target.value)}
-                                            placeholder="Nome preset (es. Trimestrale HQ)"
-                                            className="w-full flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-inner focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200/70"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (!presetName.trim()) return;
-                                                savePreset();
-                                                setIsFiltersPresetPanelOpen(false);
-                                            }}
-                                            disabled={!presetName.trim()}
-                                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-500 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                            <Check className="h-3.5 w-3.5" />
-                                            Salva
-                                        </button>
-                                    </div>
-                                    {filterPresets.length > 0 ? (
-                                        <div className="space-y-2">
-                                            {filterPresets.map(preset => (
-                                                <div
-                                                    key={preset.id}
-                                                    className="inline-flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-100/40"
-                                                >
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            applyPreset(preset);
-                                                            setIsFiltersPresetPanelOpen(false);
-                                                        }}
-                                                        className="flex-1 text-left transition-colors hover:text-indigo-600"
-                                                    >
-                                                        {preset.name}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => deletePreset(preset.id)}
-                                                        className="text-slate-300 transition-colors hover:text-rose-500"
-                                                    >
-                                                        <X className="w-3 h-3" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-xs font-medium text-slate-400">
-                                            Nessun preset salvato.
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    {/* Predefined Date Presets */}
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                            Filtri rapidi
-                        </span>
-                        {PREDEFINED_DATE_PRESETS.map(preset => (
-                            <button
-                                key={preset.id}
-                                type="button"
-                                onClick={() => applyPreset(preset)}
-                                className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm shadow-indigo-100/60 transition-all hover:border-indigo-300 hover:from-indigo-100 hover:to-purple-100 hover:shadow-md"
-                            >
-                                <Calendar className="h-3.5 w-3.5" />
-                                {preset.name}
-                            </button>
-                        ))}
-                    </div>
-                    {filterPresets.length > 0 && (
-                        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                Preset rapidi
-                            </span>
-                            {filterPresets.map(preset => (
-                                <div
-                                    key={preset.id}
-                                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm shadow-slate-100/40"
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => applyPreset(preset)}
-                                        className="transition-colors hover:text-indigo-600"
-                                    >
-                                        {preset.name}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => deletePreset(preset.id)}
-                                        className="text-slate-300 transition-colors hover:text-rose-500"
-                                    >
-                                        <XCircle className="h-3.5 w-3.5" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </section>
-
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
-                    {kpiCards.map(({ key, ...cardProps }) => (
-                        <KpiCard key={key} {...cardProps} />
-                    ))}
+                <div className="flex items-center justify-between gap-6">
+                    <span className="flex items-center gap-2 text-amber-600">
+                        <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
+                        Scaduto
+                    </span>
+                    <span>{formatCurrency(overdueEntry?.value || 0)}</span>
                 </div>
-
-
-
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                    <section className="relative flex flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-[0_28px_60px_-36px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
-                        <div className="flex flex-col">
-                            <div className="rounded-t-3xl border-b border-white/20 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 px-6 py-5 text-white">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
-                                    Andamento contratti
-                                </p>
-                                <h2 className="text-lg font-black text-white">
-                                    Valore vs spesa · Ultimi 12 mesi
-                                </h2>
-                            </div>
-                            <div className="flex flex-1 flex-col px-6 py-6">
-                                <div className="flex-1">
-                                    {contractsTrendData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height={320}>
-                                            <AreaChart
-                                                data={contractsTrendData}
-                                                stackOffset="none"
-                                                margin={{ top: 12, right: 8, left: -12, bottom: 0 }}
-                                            >
-                                                <defs>
-                                                    <linearGradient id="contracts-spend-gradient" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="0%" stopColor="#2563eb" stopOpacity={0.95} />
-                                                        <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.35} />
-                                                    </linearGradient>
-                                                    <linearGradient id="contracts-overdue-gradient" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="0%" stopColor="#f97316" stopOpacity={0.9} />
-                                                        <stop offset="100%" stopColor="#fbbf24" stopOpacity={0.35} />
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
-                                                <XAxis
-                                                    dataKey="label"
-                                                    tickLine={false}
-                                                    axisLine={false}
-                                                    tick={{ fill: '#1e293b', fontSize: 12, fontWeight: 600 }}
-                                                />
-                                                <YAxis
-                                                    tickFormatter={(value) => formatCompactCurrency(value)}
-                                                    tickLine={false}
-                                                    axisLine={false}
-                                                    tick={{ fill: '#1e293b', fontSize: 12, fontWeight: 600 }}
-                                                />
-                                                <RechartsTooltip
-                                                    content={renderContractsTrendTooltip}
-                                                    cursor={{ stroke: '#4f46e5', strokeWidth: 1, strokeDasharray: '4 4' }}
-                                                />
-                                                <Area
-                                                    type="monotone"
-                                                    dataKey="spend"
-                                                    stackId="1"
-                                                    stroke="#2563eb"
-                                                    strokeWidth={2}
-                                                    fill="url(#contracts-spend-gradient)"
-                                                    fillOpacity={1}
-                                                    activeDot={{ r: 4, strokeWidth: 0 }}
-                                                    isAnimationActive={false}
-                                                />
-                                                <Area
-                                                    type="monotone"
-                                                    dataKey="overdue"
-                                                    stackId="1"
-                                                    stroke="#f97316"
-                                                    strokeWidth={2}
-                                                    fill="url(#contracts-overdue-gradient)"
-                                                    fillOpacity={1}
-                                                    activeDot={{ r: 4, strokeWidth: 0 }}
-                                                    isAnimationActive={false}
-                                                />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-blue-200/70 bg-white/60 p-10 text-center text-sm font-semibold text-blue-600">
-                                            Non ci sono contratti nel periodo selezionato.
-                                        </div>
-                                    )}
-                                </div>
-                                {contractsTrendSummary.length > 0 && (
-                                    <div className="mt-6">
-                                        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                            {contractsTrendSummary.map((entry) => (
-                                                <li
-                                                    key={`trend-summary-${entry.sortKey}`}
-                                                    className="flex items-center justify-between rounded-2xl border border-indigo-100 bg-slate-50/50 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm"
-                                                >
-                                                    <span className="text-sm font-medium text-slate-600">
-                                                        {entry.fullLabel}
-                                                    </span>
-                                                    <span className="text-sm font-semibold text-slate-900">
-                                                        {formatCurrency(entry.spend + entry.overdue)}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </section>
-
-                    <section className="relative flex flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-[0_28px_60px_-36px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
-                        <div className="flex flex-col">
-                            <div className="rounded-t-3xl border-b border-white/20 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 px-6 py-5 text-white">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
-                                    Ripartizione fornitori
-                                </p>
-                                <h2 className="text-lg font-black text-white">
-                                    Peso economico per settore
-                                </h2>
-                            </div>
-                            <div className="flex flex-1 flex-col px-6 py-6">
-                                <div className="flex-1">
-                                    {contractSectorDistribution.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height={320}>
-                                            <PieChart>
-                                                <Pie
-                                                    data={contractSectorDistribution}
-                                                    dataKey="value"
-                                                    nameKey="name"
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius="60%"
-                                                    outerRadius="80%"
-                                                    paddingAngle={4}
-                                                    strokeWidth={0}
-                                                >
-                                                    {contractSectorDistribution.map((entry) => (
-                                                        <Cell key={`sector-${entry.id}`} fill={entry.color} />
-                                                    ))}
-                                                </Pie>
-                                                <RechartsTooltip content={renderContractsSectorTooltip} />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-blue-200/70 bg-white/60 p-10 text-center text-sm font-semibold text-blue-600">
-                                            Nessun dato disponibile per generare la ripartizione.
-                                        </div>
-                                    )}
-                                </div>
-                                {contractSectorDistribution.length > 0 && (
-                                    <div className="mt-6">
-                                        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                            {contractSectorDistribution.slice(0, 4).map((entry) => {
-                                                const percentage = contractSectorTotal > 0
-                                                    ? `${Math.round((entry.value / contractSectorTotal) * 100)}%`
-                                                    : '0%';
-                                                return (
-                                                    <li
-                                                        key={`sector-summary-${entry.id}`}
-                                                        className="flex items-center justify-between rounded-2xl border border-indigo-100 bg-slate-50/50 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm"
-                                                    >
-                                                        <span className="flex items-center gap-3 text-sm font-medium text-slate-600">
-                                                            <span
-                                                                className="inline-flex h-2.5 w-2.5 rounded-full"
-                                                                style={{ backgroundColor: entry.color }}
-                                                            />
-                                                            {entry.name}
-                                                        </span>
-                                                        <span className="text-sm font-semibold text-slate-900">
-                                                            {percentage}
-                                                        </span>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </section>
+                <div className="flex items-center justify-between gap-6 border-t border-slate-100 pt-2">
+                    <span className="text-slate-500">Valore contratti</span>
+                    <span className="text-slate-900">{formatCurrency(data.total || 0)}</span>
                 </div>
-
-                <ContractsTableSection
-                    filterPresets={filterPresets}
-                    applyPreset={applyPreset}
-                    deletePreset={deletePreset}
-                    hasActiveFilters={hasActiveFilters}
-                    resetFilters={resetFilters}
-                    processedContracts={processedContracts}
-                    supplierMap={supplierMap}
-                    sectorMap={sectorMap}
-                    handleOpenEditModal={handleOpenEditModal}
-                    handleDeleteContract={handleDeleteContract}
-                    handleOpenAddModal={handleOpenAddModal}
-                    sortConfig={sortConfig}
-                    onSortChange={handleSortChange}
-                />
-
-                {/* Modal */}
-                <ContractFormModal
-                    isOpen={isModalOpen}
-                    onClose={handleCloseModal}
-                    onSave={handleSaveContract}
-                    initialData={editingContract}
-                    suppliers={suppliers}
-                    sectors={sectors}
-                    branches={branches}
-                />
             </div>
         </div>
     );
+}, []);
+
+const renderContractsSectorTooltip = useCallback(({ active, payload }) => {
+    if (!active || !payload || payload.length === 0) return null;
+    const data = payload[0]?.payload;
+    if (!data) return null;
+    const percentage = contractSectorTotal > 0
+        ? ((data.value / contractSectorTotal) * 100).toFixed(1)
+        : '0.0';
+
+    return (
+        <div className={getTooltipContainerClass('blue')}>
+            <p className="text-sm font-bold text-slate-900">{data.name}</p>
+            <p className="text-xs font-semibold text-slate-600 mt-1">
+                {formatCurrency(data.value)} · {percentage}%
+            </p>
+        </div>
+    );
+}, [contractSectorTotal]);
+
+const handleOpenAddModal = () => { setEditingContract(null); setIsModalOpen(true); };
+const handleOpenEditModal = (contract) => { setEditingContract(contract); setIsModalOpen(true); };
+const handleCloseModal = () => { setIsModalOpen(false); setEditingContract(null); };
+const handleSaveContract = async (formData, contractFile) => {
+    const isEditing = !!formData.id;
+    const toastId = toast.loading(isEditing ? 'Aggiornamento...' : 'Salvataggio...');
+    try {
+        const { _key, ...cleanFormData } = formData;
+
+        // Upload file if present
+        let fileURL = cleanFormData.contractPdfUrl || "";
+        if (contractFile) {
+            const formData = new FormData();
+            formData.append('file', contractFile);
+            const token = await getToken();
+            const uploadRes = await axios.post('/api/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            fileURL = uploadRes.data.url;
+        }
+
+        const payload = {
+            ...cleanFormData,
+            supplierId: cleanFormData.supplierld || cleanFormData.supplierId, // Map back to API field
+            contractPdfUrl: fileURL,
+            amount: parseFloat(String(cleanFormData.totalAmount || 0).replace(',', '.')), // Ensure amount is float if needed
+            lineItems: cleanFormData.lineItems.map(item => ({
+                ...item,
+                totalAmount: parseFloat(String(item.totalAmount).replace(',', '.')) || 0,
+                sectorId: item.sectorld || item.sectorId, // Map back to API field
+                branchId: item.branchld || item.branchId      // Map back to API field
+            }))
+        };
+
+        const url = isEditing ? `/api/contracts/${formData.id}` : '/api/contracts';
+        const token = await getToken();
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        if (isEditing) {
+            await axios.put(url, payload, { headers });
+        } else {
+            await axios.post(url, payload, { headers });
+        }
+
+
+
+        toast.success(isEditing ? 'Contratto aggiornato!' : 'Contratto creato!', { id: toastId });
+        handleCloseModal();
+        fetchData(); // Refresh data
+    } catch (error) {
+        console.error("Errore nel salvare il contratto:", error);
+        toast.error(error.message || 'Errore imprevisto.', { id: toastId });
+    }
+};
+
+const handleDeleteContract = async (contract) => {
+    if (!window.confirm(`Sei sicuro di voler eliminare il contratto "${contract.description}"?`)) return;
+    const toastId = toast.loading("Eliminazione in corso...");
+    try {
+        if (contract.contractPdfUrl) {
+            const fileRef = ref(storage, contract.contractPdfUrl);
+            await deleteObject(fileRef).catch(err => console.warn("File non trovato:", err));
+        }
+
+        const token = await getToken();
+        await axios.delete(`/api/contracts/${contract.id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        toast.success("Contratto eliminato!", { id: toastId });
+        fetchData(); // Refresh data
+    } catch (error) {
+        console.error("Errore durante l'eliminazione:", error);
+        toast.error("Errore durante l'eliminazione.", { id: toastId });
+    }
+};
+
+const resetFilters = () => {
+    setSearchTerm('');
+    setSelectedBranch('all');
+    setSelectedSector('all');
+    setDateFilter({ startDate: '', endDate: '' }); // Reset to empty (all time)
+    setContractAdvancedFilter('');
+    setIsAdvancedPanelOpen(false);
+    setIsFiltersPresetPanelOpen(false);
+    setIsDateDropdownOpen(false);
+    setPresetName('');
+    toast.success("Filtri resettati!");
+};
+
+const trimmedSearchTerm = searchTerm.trim();
+const hasActiveFilters = Boolean(
+    trimmedSearchTerm ||
+    selectedBranch !== 'all' ||
+    selectedSector !== 'all' ||
+    hasCustomDateRange ||
+    contractAdvancedFilter
+);
+const overrunContracts = processedContracts
+    .filter(c => c.progress > 100)
+    .map(c => ({
+        ...c,
+        budgetOverrun: Math.max(0, (c.spentAmount + (c.overdueAmount || 0)) - c.totalAmount)
+    }));
+const totalOverrunAmount = overrunContracts.reduce((sum, c) => sum + (c.budgetOverrun || 0), 0);
+const notificationCount = overrunContracts.length;
+useEffect(() => {
+    if (notificationCount === 0 && isNotificationsPanelOpen) {
+        setIsNotificationsPanelOpen(false);
+    }
+}, [notificationCount, isNotificationsPanelOpen]);
+
+if (isLoading) {
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+            <div className="text-center space-y-4">
+                <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <div className="text-xl font-semibold text-gray-700">Caricamento contratti...</div>
+            </div>
+        </div>
+    );
+}
+
+return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative">
+        <div className="relative p-4 lg:p-8 space-y-6">
+            {/* Hero */}
+            <div className="space-y-6">
+                <div className="relative rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-sky-600 text-white shadow-2xl border border-white/20 p-6 lg:p-10">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.3),transparent_55%)]" />
+                    <div className="relative flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-4 lg:max-w-3xl">
+                            <div className="flex items-center gap-4">
+                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-white shadow-lg shadow-blue-900/30 ring-4 ring-white/20">
+                                    <FileSignature className="w-7 h-7" />
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase tracking-[0.4em] text-white/70 font-semibold">Contratti</p>
+                                    <h1 className="text-3xl lg:text-4xl xl:text-5xl font-black leading-tight">Gestione Contratti</h1>
+                                </div>
+                            </div>
+                            <p className="text-sm lg:text-base text-white/85 max-w-3xl">
+                                Monitora accordi e impegni con i fornitori mantenendo un'esperienza coerente con dashboard, spese e budget.
+                            </p>
+                        </div>
+                        <div className="flex w-full flex-col gap-4 lg:ml-auto lg:w-auto lg:max-w-4xl">
+                            {notificationCount > 0 && (
+                                <div className="flex flex-col items-end gap-3 w-full">
+                                    <div className="relative w-full">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsNotificationsPanelOpen((prev) => !prev)}
+                                            className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-white/30 px-4 py-2 text-sm font-semibold shadow-lg shadow-blue-900/30 backdrop-blur-sm transition-all bg-white/15 text-white hover:bg-white/25"
+                                        >
+                                            <Bell className="w-4 h-4" />
+                                            Notifiche
+                                            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white/90 px-2 text-xs font-bold text-blue-600">
+                                                {notificationCount}
+                                            </span>
+                                        </button>
+                                        {isNotificationsPanelOpen && (
+                                            <>
+                                                <div
+                                                    className="fixed inset-0 z-40"
+                                                    onClick={() => setIsNotificationsPanelOpen(false)}
+                                                />
+                                                <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-[calc(100vw-3rem)] max-w-xs rounded-3xl border border-white/40 bg-white/95 p-5 shadow-2xl shadow-blue-900/30 backdrop-blur sm:w-80 space-y-3">
+                                                    {overrunContracts.length > 0 ? (
+                                                        <>
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div>
+                                                                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-500">
+                                                                        Contratti oltre budget
+                                                                    </p>
+                                                                    <h3 className="text-sm font-black text-slate-900">
+                                                                        {formatCurrency(totalOverrunAmount)}
+                                                                    </h3>
+                                                                </div>
+                                                                <span className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-600">
+                                                                    <AlertTriangle className="h-4 w-4" />
+                                                                    {overrunContracts.length}
+                                                                </span>
+                                                            </div>
+                                                            <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
+                                                                {overrunContracts.map(contract => (
+                                                                    <div
+                                                                        key={contract.id}
+                                                                        className="flex items-center justify-between rounded-2xl border border-rose-100/80 bg-white px-3 py-2 shadow-sm shadow-rose-100/50"
+                                                                    >
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-xs font-semibold text-slate-700">
+                                                                                {supplierMap.get(contract.supplierId) || 'N/D'}
+                                                                            </span>
+                                                                            <span className="text-[11px] font-semibold text-rose-500">
+                                                                                +{(contract.progress - 100).toFixed(1)}%
+                                                                            </span>
+                                                                        </div>
+                                                                        <span className="text-xs font-bold text-slate-900">
+                                                                            {formatCurrency(contract.budgetOverrun || 0)}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <p className="text-sm font-semibold text-slate-600">
+                                                            Nessuna notifica disponibile.
+                                                        </p>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsNotificationsPanelOpen(false)}
+                                                        className="w-full rounded-xl border border-blue-200 bg-blue-50 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-blue-600 transition hover:bg-blue-100"
+                                                    >
+                                                        Chiudi notifiche
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="flex flex-col items-end gap-3 w-full">
+                                <button
+                                    type="button"
+                                    onClick={handleOpenAddModal}
+                                    className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-white/15 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/30 backdrop-blur-sm transition-all hover:bg-white/25"
+                                >
+                                    <PlusCircle className="w-4 h-4" />
+                                    Nuovo contratto
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {/* Sezione Filtri */}
+            <section className="relative z-20 rounded-3xl border border-white/80 bg-gradient-to-r from-slate-300/95 via-slate-100/90 to-white/90 px-4 py-5 backdrop-blur-2xl overflow-visible">
+                <div className="pointer-events-none absolute inset-0">
+                    <div className="absolute -top-16 left-12 h-32 w-32 rounded-full bg-indigo-100/35 blur-3xl" />
+                    <div className="absolute -bottom-20 right-10 h-36 w-36 rounded-full bg-slate-200/55 blur-3xl" />
+                </div>
+                <div className="relative z-10 flex flex-wrap lg:flex-nowrap items-center justify-center gap-3 lg:gap-4 w-full max-w-6xl mx-auto">
+                    <div className="flex min-w-[220px] items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-slate-700 shadow-sm shadow-slate-200/80 backdrop-blur">
+                        <Search className="h-4 w-4 text-slate-700" />
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(event) => setSearchTerm(event.target.value)}
+                            placeholder="Ricerca libera"
+                            className="w-full bg-transparent text-sm font-semibold text-slate-700 placeholder:text-slate-600 focus:outline-none"
+                        />
+                    </div>
+                    <DateRangeFilter
+                        isOpen={isDateDropdownOpen}
+                        setIsOpen={setIsDateDropdownOpen}
+                        dateFilter={dateFilter}
+                        setDateFilter={setDateFilter}
+                        hasDateRange={hasCustomDateRange}
+                        setIsPresetPanelOpen={setIsFiltersPresetPanelOpen}
+                        setIsAdvancedPanelOpen={setIsAdvancedPanelOpen}
+                    />
+                    <div className="flex min-w-[200px] items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-slate-700 shadow-sm shadow-slate-200/80 backdrop-blur">
+                        <Layers className="h-4 w-4 text-slate-600" />
+                        <select
+                            value={selectedSector}
+                            onChange={(event) => setSelectedSector(event.target.value)}
+                            className="w-full bg-transparent text-sm font-semibold text-slate-700 focus:outline-none"
+                        >
+                            <option value="all">Tutti i settori</option>
+                            {Array.from(sectorMap.entries()).map(([id, name]) => (
+                                <option key={id} value={id}>
+                                    {name || 'N/D'}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex min-w-[200px] items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-slate-700 shadow-sm shadow-slate-200/80 backdrop-blur">
+                        <MapPin className="h-4 w-4 text-slate-600" />
+                        <select
+                            value={selectedBranch}
+                            onChange={(event) => setSelectedBranch(event.target.value)}
+                            className="w-full bg-transparent text-sm font-semibold text-slate-700 focus:outline-none"
+                        >
+                            <option value="all">Tutte le filiali</option>
+                            {orderedBranches.map((branch) => (
+                                <option key={branch.id} value={branch.id}>
+                                    {branch.name || 'N/D'}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="relative">
+                        {isAdvancedPanelOpen && (
+                            <div className="fixed inset-0 z-[210]" onClick={() => setIsAdvancedPanelOpen(false)} />
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsAdvancedPanelOpen(prev => !prev);
+                                setIsFiltersPresetPanelOpen(false);
+                                setIsDateDropdownOpen(false);
+                            }}
+                            aria-expanded={isAdvancedPanelOpen}
+                            className={`inline-flex items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-200/80 backdrop-blur transition hover:border-indigo-200 hover:text-indigo-600 ${contractAdvancedFilter ? 'ring-2 ring-indigo-100' : ''
+                                }`}
+                        >
+                            <Filter className="h-4 w-4 text-slate-500" />
+                            <span className="whitespace-nowrap">Filtri avanzati</span>
+                            <ArrowUpDown
+                                className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isAdvancedPanelOpen ? 'rotate-180' : ''}`}
+                            />
+                        </button>
+                        {isAdvancedPanelOpen && (
+                            <div className="absolute right-0 top-[calc(100%+0.75rem)] z-[220] w-[calc(100vw-3rem)] max-w-xs rounded-3xl border border-white/70 bg-white/95 p-5 shadow-2xl shadow-slate-900/15 backdrop-blur space-y-3">
+                                <div>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                                        Stato documentale
+                                    </p>
+                                    <p className="text-xs font-medium text-slate-500">
+                                        Limita l'elenco in base allo stato dei contratti.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {CONTRACT_ADVANCED_FILTERS.map(option => {
+                                        const active = contractAdvancedFilter === option.key;
+                                        return (
+                                            <button
+                                                key={option.key || 'all'}
+                                                type="button"
+                                                onClick={() => setContractAdvancedFilter(option.key)}
+                                                className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${active
+                                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-500 text-white shadow-lg shadow-indigo-500/25'
+                                                    : 'border border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-600'
+                                                    }`}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <button
+                                        type="button"
+                                        onClick={() => setContractAdvancedFilter('')}
+                                        className="text-xs font-semibold text-indigo-500 transition hover:text-rose-500"
+                                    >
+                                        Pulisci
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAdvancedPanelOpen(false)}
+                                        className="inline-flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600 transition hover:border-indigo-200 hover:bg-indigo-100"
+                                    >
+                                        <Check className="h-3.5 w-3.5" />
+                                        Chiudi
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div className="relative flex flex-row items-center gap-3">
+                        {isFiltersPresetPanelOpen && (
+                            <div
+                                className="fixed inset-0 z-[210]"
+                                onClick={() => setIsFiltersPresetPanelOpen(false)}
+                            />
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsFiltersPresetPanelOpen(prev => !prev);
+                                setIsAdvancedPanelOpen(false);
+                                setIsDateDropdownOpen(false);
+                            }}
+                            aria-expanded={isFiltersPresetPanelOpen}
+                            className={`inline-flex items-center gap-2 rounded-2xl border border-white/60 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-200/80 backdrop-blur transition hover:border-indigo-200 hover:text-indigo-600 ${isFiltersPresetPanelOpen ? 'ring-2 ring-indigo-100' : ''
+                                }`}
+                        >
+                            <SlidersHorizontal className="h-4 w-4 text-slate-500" />
+                            Preset
+                        </button>
+                        {hasActiveFilters && (
+                            <button
+                                type="button"
+                                onClick={resetFilters}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm shadow-rose-100/60 transition hover:border-rose-300 whitespace-nowrap"
+                            >
+                                <X className="w-3.5 h-3.5 text-rose-500" />
+                                Resetta filtri
+                            </button>
+                        )}
+                        {isFiltersPresetPanelOpen && (
+                            <div className="absolute right-0 top-[calc(100%+0.75rem)] z-[220] w-[calc(100vw-3rem)] max-w-xs rounded-3xl border border-white/70 bg-white/95 p-5 shadow-2xl shadow-slate-900/15 backdrop-blur sm:w-80 space-y-3">
+                                <div>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                                        Preset salvati
+                                    </p>
+                                    <p className="text-xs font-medium text-slate-500">
+                                        Salva e riutilizza combinazioni di filtri condivise.
+                                    </p>
+                                </div>
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                    <input
+                                        type="text"
+                                        value={presetName}
+                                        onChange={(event) => setPresetName(event.target.value)}
+                                        placeholder="Nome preset (es. Trimestrale HQ)"
+                                        className="w-full flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-inner focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200/70"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!presetName.trim()) return;
+                                            savePreset();
+                                            setIsFiltersPresetPanelOpen(false);
+                                        }}
+                                        disabled={!presetName.trim()}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-500 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <Check className="h-3.5 w-3.5" />
+                                        Salva
+                                    </button>
+                                </div>
+                                {filterPresets.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {filterPresets.map(preset => (
+                                            <div
+                                                key={preset.id}
+                                                className="inline-flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-100/40"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        applyPreset(preset);
+                                                        setIsFiltersPresetPanelOpen(false);
+                                                    }}
+                                                    className="flex-1 text-left transition-colors hover:text-indigo-600"
+                                                >
+                                                    {preset.name}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => deletePreset(preset.id)}
+                                                    className="text-slate-300 transition-colors hover:text-rose-500"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs font-medium text-slate-400">
+                                        Nessun preset salvato.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                {/* Predefined Date Presets */}
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        Filtri rapidi
+                    </span>
+                    {PREDEFINED_DATE_PRESETS.map(preset => (
+                        <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => applyPreset(preset)}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm shadow-indigo-100/60 transition-all hover:border-indigo-300 hover:from-indigo-100 hover:to-purple-100 hover:shadow-md"
+                        >
+                            <Calendar className="h-3.5 w-3.5" />
+                            {preset.name}
+                        </button>
+                    ))}
+                </div>
+                {filterPresets.length > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            Preset rapidi
+                        </span>
+                        {filterPresets.map(preset => (
+                            <div
+                                key={preset.id}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm shadow-slate-100/40"
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => applyPreset(preset)}
+                                    className="transition-colors hover:text-indigo-600"
+                                >
+                                    {preset.name}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => deletePreset(preset.id)}
+                                    className="text-slate-300 transition-colors hover:text-rose-500"
+                                >
+                                    <XCircle className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+                {kpiCards.map(({ key, ...cardProps }) => (
+                    <KpiCard key={key} {...cardProps} />
+                ))}
+            </div>
+
+
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <section className="relative flex flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-[0_28px_60px_-36px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
+                    <div className="flex flex-col">
+                        <div className="rounded-t-3xl border-b border-white/20 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 px-6 py-5 text-white">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
+                                Andamento contratti
+                            </p>
+                            <h2 className="text-lg font-black text-white">
+                                Valore vs spesa · Ultimi 12 mesi
+                            </h2>
+                        </div>
+                        <div className="flex flex-1 flex-col px-6 py-6">
+                            <div className="flex-1">
+                                {contractsTrendData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={320}>
+                                        <AreaChart
+                                            data={contractsTrendData}
+                                            stackOffset="none"
+                                            margin={{ top: 12, right: 8, left: -12, bottom: 0 }}
+                                        >
+                                            <defs>
+                                                <linearGradient id="contracts-spend-gradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#2563eb" stopOpacity={0.95} />
+                                                    <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.35} />
+                                                </linearGradient>
+                                                <linearGradient id="contracts-overdue-gradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.9} />
+                                                    <stop offset="100%" stopColor="#fbbf24" stopOpacity={0.35} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
+                                            <XAxis
+                                                dataKey="label"
+                                                tickLine={false}
+                                                axisLine={false}
+                                                tick={{ fill: '#1e293b', fontSize: 12, fontWeight: 600 }}
+                                            />
+                                            <YAxis
+                                                tickFormatter={(value) => formatCompactCurrency(value)}
+                                                tickLine={false}
+                                                axisLine={false}
+                                                tick={{ fill: '#1e293b', fontSize: 12, fontWeight: 600 }}
+                                            />
+                                            <RechartsTooltip
+                                                content={renderContractsTrendTooltip}
+                                                cursor={{ stroke: '#4f46e5', strokeWidth: 1, strokeDasharray: '4 4' }}
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="spend"
+                                                stackId="1"
+                                                stroke="#2563eb"
+                                                strokeWidth={2}
+                                                fill="url(#contracts-spend-gradient)"
+                                                fillOpacity={1}
+                                                activeDot={{ r: 4, strokeWidth: 0 }}
+                                                isAnimationActive={false}
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="overdue"
+                                                stackId="1"
+                                                stroke="#f97316"
+                                                strokeWidth={2}
+                                                fill="url(#contracts-overdue-gradient)"
+                                                fillOpacity={1}
+                                                activeDot={{ r: 4, strokeWidth: 0 }}
+                                                isAnimationActive={false}
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-blue-200/70 bg-white/60 p-10 text-center text-sm font-semibold text-blue-600">
+                                        Non ci sono contratti nel periodo selezionato.
+                                    </div>
+                                )}
+                            </div>
+                            {contractsTrendSummary.length > 0 && (
+                                <div className="mt-6">
+                                    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        {contractsTrendSummary.map((entry) => (
+                                            <li
+                                                key={`trend-summary-${entry.sortKey}`}
+                                                className="flex items-center justify-between rounded-2xl border border-indigo-100 bg-slate-50/50 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm"
+                                            >
+                                                <span className="text-sm font-medium text-slate-600">
+                                                    {entry.fullLabel}
+                                                </span>
+                                                <span className="text-sm font-semibold text-slate-900">
+                                                    {formatCurrency(entry.spend + entry.overdue)}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="relative flex flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-[0_28px_60px_-36px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
+                    <div className="flex flex-col">
+                        <div className="rounded-t-3xl border-b border-white/20 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 px-6 py-5 text-white">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
+                                Ripartizione fornitori
+                            </p>
+                            <h2 className="text-lg font-black text-white">
+                                Peso economico per settore
+                            </h2>
+                        </div>
+                        <div className="flex flex-1 flex-col px-6 py-6">
+                            <div className="flex-1">
+                                {contractSectorDistribution.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={320}>
+                                        <PieChart>
+                                            <Pie
+                                                data={contractSectorDistribution}
+                                                dataKey="value"
+                                                nameKey="name"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius="60%"
+                                                outerRadius="80%"
+                                                paddingAngle={4}
+                                                strokeWidth={0}
+                                            >
+                                                {contractSectorDistribution.map((entry) => (
+                                                    <Cell key={`sector-${entry.id}`} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <RechartsTooltip content={renderContractsSectorTooltip} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-blue-200/70 bg-white/60 p-10 text-center text-sm font-semibold text-blue-600">
+                                        Nessun dato disponibile per generare la ripartizione.
+                                    </div>
+                                )}
+                            </div>
+                            {contractSectorDistribution.length > 0 && (
+                                <div className="mt-6">
+                                    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        {contractSectorDistribution.slice(0, 4).map((entry) => {
+                                            const percentage = contractSectorTotal > 0
+                                                ? `${Math.round((entry.value / contractSectorTotal) * 100)}%`
+                                                : '0%';
+                                            return (
+                                                <li
+                                                    key={`sector-summary-${entry.id}`}
+                                                    className="flex items-center justify-between rounded-2xl border border-indigo-100 bg-slate-50/50 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm"
+                                                >
+                                                    <span className="flex items-center gap-3 text-sm font-medium text-slate-600">
+                                                        <span
+                                                            className="inline-flex h-2.5 w-2.5 rounded-full"
+                                                            style={{ backgroundColor: entry.color }}
+                                                        />
+                                                        {entry.name}
+                                                    </span>
+                                                    <span className="text-sm font-semibold text-slate-900">
+                                                        {percentage}
+                                                    </span>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <ContractsTableSection
+                filterPresets={filterPresets}
+                applyPreset={applyPreset}
+                deletePreset={deletePreset}
+                hasActiveFilters={hasActiveFilters}
+                resetFilters={resetFilters}
+                processedContracts={processedContracts}
+                supplierMap={supplierMap}
+                sectorMap={sectorMap}
+                handleOpenEditModal={handleOpenEditModal}
+                handleDeleteContract={handleDeleteContract}
+                handleOpenAddModal={handleOpenAddModal}
+                sortConfig={sortConfig}
+                onSortChange={handleSortChange}
+            />
+
+            {/* Modal */}
+            <ContractFormModal
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                onSave={handleSaveContract}
+                initialData={editingContract}
+                suppliers={suppliers}
+                sectors={sectors}
+                branches={branches}
+            />
+        </div>
+    </div>
+);
 }

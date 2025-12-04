@@ -1,16 +1,14 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { signOut } from 'firebase/auth';
-import { auth } from '../firebase/config';
+import { useClerk } from '@clerk/clerk-react';
 import { User, LayoutDashboard, DollarSign, LogOut } from 'lucide-react';
 
 function NavLink({ to, active, icon, children }) {
     return (
         <Link
             to={to}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-            active ? 'bg-blue-100 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-200'
-            }`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${active ? 'bg-blue-100 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-200'
+                }`}
         >
             {icon}
             {children}

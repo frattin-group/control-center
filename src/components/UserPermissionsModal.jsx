@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { db } from '../firebase/config';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { useAuth } from '@clerk/clerk-react';
+import axios from 'axios';
 
 export default function UserPermissionsModal({ isOpen, onClose, onSave, userData }) {
     const [role, setRole] = useState('');
     const [assignedChannels, setAssignedChannels] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [loadingSuppliers, setLoadingSuppliers] = useState(true);
+    const { getToken } = useAuth();
 
     useEffect(() => {
         if (isOpen && userData) {
@@ -20,26 +21,26 @@ export default function UserPermissionsModal({ isOpen, onClose, onSave, userData
     useEffect(() => {
         if (!isOpen) return;
 
-        setLoadingSuppliers(true);
-        const unsubscribe = onSnapshot(
-            query(collection(db, 'channels'), orderBy('name')),
-            (snapshot) => {
-                const list = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                }));
+        const fetchSuppliers = async () => {
+            setLoadingSuppliers(true);
+            try {
+                const token = await getToken();
+                const response = await axios.get('/api/suppliers', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                // Sort by name
+                const list = response.data.sort((a, b) => a.name.localeCompare(b.name));
                 setSuppliers(list);
-                setLoadingSuppliers(false);
-            },
-            (error) => {
+            } catch (error) {
                 console.error('Errore caricamento fornitori:', error);
                 toast.error('Errore nel caricamento dei fornitori');
+            } finally {
                 setLoadingSuppliers(false);
             }
-        );
+        };
 
-        return () => unsubscribe();
-    }, [isOpen]);
+        fetchSuppliers();
+    }, [isOpen, getToken]);
 
     const handleSave = () => {
         const dataToSave = {
@@ -87,7 +88,7 @@ export default function UserPermissionsModal({ isOpen, onClose, onSave, userData
                         <X className="h-4 w-4" />
                     </button>
                 </div>
-                
+
                 <div className="space-y-6 overflow-y-auto bg-white px-6 py-6">
                     <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-5 shadow-inner shadow-white/60">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -99,9 +100,9 @@ export default function UserPermissionsModal({ isOpen, onClose, onSave, userData
 
                     <div className="space-y-2">
                         <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 block">Ruolo</label>
-                        <select 
-                            value={role} 
-                            onChange={(e) => setRole(e.target.value)} 
+                        <select
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
                             className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm transition-all focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
                         >
                             <option value="collaborator">Collaborator</option>
@@ -145,7 +146,7 @@ export default function UserPermissionsModal({ isOpen, onClose, onSave, userData
                                     </button>
                                 </div>
                             </div>
-                            
+
                             {loadingSuppliers ? (
                                 <div className="flex items-center justify-center py-8">
                                     <div className="h-8 w-8 animate-spin rounded-full border-3 border-slate-600 border-t-transparent" />
@@ -199,16 +200,16 @@ export default function UserPermissionsModal({ isOpen, onClose, onSave, userData
                         Operazione impostazioni
                     </div>
                     <div className="flex flex-col-reverse gap-3 sm:flex-row">
-                        <button 
-                            type="button" 
-                            onClick={onClose} 
+                        <button
+                            type="button"
+                            onClick={onClose}
                             className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:border-slate-400 hover:bg-slate-100"
                         >
                             Annulla
                         </button>
-                        <button 
-                            type="button" 
-                            onClick={handleSave} 
+                        <button
+                            type="button"
+                            onClick={handleSave}
                             className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition-transform hover:-translate-y-[1px] hover:bg-slate-800"
                         >
                             Salva permessi
