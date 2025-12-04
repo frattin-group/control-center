@@ -10,6 +10,7 @@ import SettingsPage from './pages/SettingsPage';
 import Spinner from './components/Spinner';
 import ContractsPage from './pages/ContractsPage';
 import EmployeesPage from './pages/EmployeesPage';
+import MFASetup from './components/MFASetup';
 
 export default function App() {
     const { user, isLoaded, isSignedIn } = useUser();
@@ -75,6 +76,11 @@ export default function App() {
                 <Spinner size="large" />
             </div>
         );
+    }
+
+    // Force MFA Setup with Custom UI
+    if (isSignedIn && user && !user.twoFactorEnabled) {
+        return <MFASetup />;
     }
 
 
