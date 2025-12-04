@@ -18,7 +18,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 shadow-lg shadow-indigo-200 mb-4">
             <BarChart3 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">DataForge</h1>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">The Flux Data</h1>
           <p className="text-slate-500 mt-2 text-sm font-medium">Marketing Intelligence Platform</p>
         </div>
 
