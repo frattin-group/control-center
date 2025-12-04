@@ -32,7 +32,7 @@ export default function MFASetup({ onComplete }) {
 
         setIsVerifying(true);
         try {
-            await totp.verify({ code });
+            await totp.attemptVerification({ code });
             setStep('success');
             toast.success("Autenticazione a due fattori attivata!");
             setTimeout(() => {
