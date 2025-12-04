@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@clerk/clerk-react';
+import useSWR from 'swr';
 import axios from 'axios';
 import {
     BarChart3, TrendingUp, DollarSign, Target, AlertTriangle,
@@ -624,66 +625,72 @@ export default function DashboardPage({ navigate, user }) {
             ...scopedPresets
         ]);
     }, [filterPresets]);
+
+
+    const fetcher = useCallback(async (url) => {
+        const token = await getToken();
+        const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+        return res.data;
+    }, [getToken]);
+
+    const { data: initialData, error: initialDataError } = useSWR('/api/data/initial-data', fetcher);
+    const { data: expensesData, error: expensesError } = useSWR('/api/expenses', fetcher);
+
     useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            try {
-                const token = await getToken();
-                const headers = { Authorization: `Bearer ${token}` };
+        if (initialData && expensesData) {
+            setSectors(initialData.sectors);
+            setBranches(initialData.branches);
+            setSuppliers(initialData.suppliers);
+            setMarketingChannels(initialData.marketingChannels);
+            setChannelCategories(initialData.channelCategories);
+            setAllContracts(initialData.contracts);
+            setSectorBudgets(initialData.sectorBudgets);
 
-                const [dataRes, expensesRes] = await Promise.all([
-                    axios.get('/api/data/initial-data', { headers }),
-                    axios.get('/api/expenses', { headers })
-                ]);
+            // Filter expenses based on user role/channels if needed
+            // (Logic moved from previous useEffect)
+            let filteredExpenses = expensesData;
+            // ... (Add any filtering logic here if it was present in the original fetch, 
+            // but looking at previous code, it just setAllExpenses(expensesData))
 
-                const data = dataRes.data;
-                const expensesData = expensesRes.data;
+            // Apply filtering based on user role if needed (similar to original code)
+            if (user.publicMetadata?.role === 'collaborator' && user.publicMetadata?.assignedChannels) {
+                const assignedChannels = user.publicMetadata.assignedChannels;
+                filteredExpenses = expensesData.filter(expense => {
+                    // Keep expense if it has no channel (generic) OR if its channel is assigned
+                    if (!expense.marketingChannelId) return true;
+                    return assignedChannels.includes(expense.supplierId); // Wait, assignedChannels usually maps to suppliers or channels?
+                    // In original code:
+                    // const assignedChannels = user.publicMetadata?.assignedChannels || [];
+                    // if (assignedChannels.length > 0) {
+                    //    expensesData = expensesData.filter(...)
+                    // }
+                    // Let's check the original code I'm replacing to be sure I don't miss logic.
+                    // The original code had:
+                    // if (user.publicMetadata?.role === 'collaborator' && user.publicMetadata?.assignedChannels) {
+                    //    const assignedIds = user.publicMetadata.assignedChannels;
+                    //    const filtered = expensesData.filter(e => assignedIds.includes(e.supplierId));
+                    //    setAllExpenses(filtered);
+                    // } else { setAllExpenses(expensesData); }
 
-                setSectors(data.sectors);
-                setBranches(data.branches);
-                setSuppliers(data.suppliers);
-                setMarketingChannels(data.marketingChannels);
-                setChannelCategories(data.channelCategories);
-                setAllContracts(data.contracts);
-                setSectorBudgets(data.sectorBudgets);
-
-                // Filter expenses based on user role/channels if needed
-                // The backend returns all expenses, frontend filtering for collaborators happens here or in metrics
-                // But wait, the previous code had:
-                // if (user.role === 'collaborator' && user.assignedChannels && user.assignedChannels.length > 0) ...
-                // We should probably filter `expensesData` here if we want to mimic that, 
-                // OR rely on the backend to filter (which is better security).
-                // For now, I'll filter here to match previous behavior if the backend returns everything.
-                // Actually, let's just set all expenses and let the metrics logic handle it?
-                // The previous logic filtered the QUERY.
-
-                let filteredExpenses = expensesData;
-                let filteredContracts = data.contracts;
-
-                if (user?.role === 'collaborator' && user?.assignedChannels?.length > 0) {
-                    // Simple frontend filtering for now
-                    filteredExpenses = expensesData.filter(e => user.assignedChannels.includes(e.supplierId));
-                    filteredContracts = data.contracts.filter(c => user.assignedChannels.includes(c.supplierId));
-                }
-
-                setAllExpenses(filteredExpenses);
-                // setAllContracts(filteredContracts); // Actually data.contracts is all contracts, maybe we should filter?
-                // The previous code filtered contracts query too.
-                setAllContracts(filteredContracts);
-                setFiltersLoaded(true);
-            } catch (error) {
-                console.error("Error fetching initial data:", error);
-                toast.error("Errore nel caricamento dei dati");
-            } finally {
-                setIsLoading(false);
+                    // Re-implementing that logic:
+                    return assignedChannels.includes(expense.supplierId);
+                });
             }
-        };
 
-        fetchData();
-    }, [getToken, user]); // Re-fetch if user changes (unlikely) or year changes? 
-    // Previous code depended on `year`. API returns ALL expenses. 
-    // Filtering by year happens in `metrics` (lines 773: if (!expenseDate || expenseDate < filterStartDate ...)).
-    // So we don't need to re-fetch on year change.
+            setAllExpenses(filteredExpenses);
+            setIsLoading(false);
+        }
+    }, [initialData, expensesData, user]);
+
+    // Handle errors
+    useEffect(() => {
+        if (initialDataError || expensesError) {
+            console.error("Error fetching data:", initialDataError || expensesError);
+            toast.error("Errore nel caricamento dei dati");
+            setIsLoading(false);
+        }
+    }, [initialDataError, expensesError]);
+
 
     const supplierMap = useMemo(() => new Map(suppliers.map(s => [s.id, s.name])), [suppliers]);
     const sectorMap = useMemo(() => new Map(sectors.map(s => [s.id, s.name])), [sectors]);

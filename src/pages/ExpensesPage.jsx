@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
+import useSWR, { useSWRConfig } from 'swr';
 import axios from 'axios';
 import {
     PlusCircle, Search, Wallet, Car, Sailboat, Caravan, Building2, Layers, MapPin,
@@ -1154,57 +1155,54 @@ export default function ExpensesPage({
 
 
     // Caricamento dati da API
+
+    const { mutate } = useSWRConfig();
+
+    const fetcher = useCallback(async (url) => {
+        const token = await getToken();
+        if (!token) throw new Error("Token mancante");
+        const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+        return res.data;
+    }, [getToken]);
+
+    const { data: initialData, error: initialDataError } = useSWR('/api/data/initial-data', fetcher);
+    const { data: expensesData, error: expensesError } = useSWR('/api/expenses', fetcher);
+
+    // Sync state with SWR data
     useEffect(() => {
-        const fetchData = async () => {
-            // toast.info("Inizio caricamento dati..."); // Debug
-            setIsLoading(true);
-            try {
-                const token = await getToken();
-                if (!token) {
-                    toast.error("Token di autenticazione mancante!");
-                    return;
-                }
-                const headers = { Authorization: `Bearer ${token}` };
+        if (initialData) {
+            setSectors(initialData.sectors);
+            setBranches(initialData.branches);
+            setSuppliers(initialData.suppliers);
+            setMarketingChannels(initialData.marketingChannels);
+            setChannelCategories(initialData.channelCategories);
+            setGeographicAreas(initialData.geographicAreas);
+            setContracts(initialData.contracts);
+            setBudgets(initialData.budgets);
+            setSectorBudgets(initialData.sectorBudgets);
+        }
+        if (expensesData) {
+            setRawExpenses(expensesData);
+            setIsLoading(false);
+        }
+    }, [initialData, expensesData]);
 
-                // Fetch Master Data and Expenses in parallel
-                const [dataRes, expensesRes] = await Promise.all([
-                    axios.get('/api/data/initial-data', { headers }),
-                    axios.get('/api/expenses', { headers })
-                ]);
+    // Handle errors
+    useEffect(() => {
+        if (initialDataError || expensesError) {
+            console.error("Error fetching data:", initialDataError || expensesError);
+            toast.error(`Errore caricamento: ${initialDataError?.message || expensesError?.message}`);
+            setIsLoading(false);
+        }
+    }, [initialDataError, expensesError]);
 
-                const data = dataRes.data;
-                const expensesData = expensesRes.data;
-
-                setSectors(data.sectors);
-                setBranches(data.branches);
-                setSuppliers(data.suppliers);
-                setMarketingChannels(data.marketingChannels);
-                setChannelCategories(data.channelCategories);
-                setGeographicAreas(data.geographicAreas);
-                setContracts(data.contracts);
-                setBudgets(data.budgets);
-                setSectorBudgets(data.sectorBudgets);
-
-                console.log("Expenses fetched:", expensesData.length);
-                if (expensesData.length > 0) {
-                    console.log("First expense sample:", expensesData[0]);
-                    console.log("Date type:", typeof expensesData[0].date);
-                    console.log("Invoice URL:", expensesData[0].invoicePdfUrl);
-                }
-                // toast.success(`Caricate ${expensesData.length} spese`); // Debug
-
-                setRawExpenses(expensesData);
-
-            } catch (error) {
-                console.error("Error fetching data:", error);
-                toast.error(`Errore caricamento: ${error.message}`);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [getToken, refreshTrigger]);
+    // Handle refresh trigger
+    useEffect(() => {
+        if (refreshTrigger > 0) {
+            mutate('/api/expenses');
+            mutate('/api/data/initial-data');
+        }
+    }, [refreshTrigger, mutate]);
 
     const filteredExpenses = useMemo(() => {
         return rawExpenses.filter(expense => {

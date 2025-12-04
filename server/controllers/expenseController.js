@@ -16,6 +16,8 @@ exports.getExpenses = async (req, res) => {
             }
         });
         console.log(`Found ${expenses.length} expenses`);
+        // Add Cache-Control header for 5 seconds
+        res.set('Cache-Control', 'public, max-age=5, s-maxage=5, stale-while-revalidate=59');
         res.json(expenses);
     } catch (error) {
         console.error("Error fetching expenses:", error);
