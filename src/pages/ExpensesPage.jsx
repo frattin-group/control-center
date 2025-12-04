@@ -32,7 +32,7 @@ import {
     Pie,
 } from 'recharts';
 
-const storage = getStorage();
+
 
 const MONTHS = [
     { id: '01', label: 'Gennaio' },
