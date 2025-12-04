@@ -64,9 +64,8 @@ exports.analyzeInvoice = async (req, res) => {
                     Restituisci SOLO il JSON.`;
 
         if (file.mimetype === 'application/pdf') {
-            const dataBuffer = fs.readFileSync(file.path);
             try {
-                const pdfData = await pdfParse(dataBuffer);
+                const pdfData = await pdfParse(file.buffer);
                 const textContent = pdfData.text;
 
                 if (!textContent || textContent.trim().length === 0) {
@@ -84,8 +83,7 @@ exports.analyzeInvoice = async (req, res) => {
                 return res.status(400).json({ error: "Impossibile leggere il PDF. Assicurati che sia testuale." });
             }
         } else if (file.mimetype.startsWith('image/')) {
-            const imageBuffer = fs.readFileSync(file.path);
-            const base64Image = imageBuffer.toString('base64');
+            const base64Image = file.buffer.toString('base64');
             const imageUrl = `data:${file.mimetype};base64,${base64Image}`;
 
             messages = [
@@ -112,8 +110,7 @@ exports.analyzeInvoice = async (req, res) => {
         const jsonStr = content.replace(/```json/g, "").replace(/```/g, "").trim();
         const data = JSON.parse(jsonStr);
 
-        // Cleanup uploaded file
-        fs.unlinkSync(file.path);
+        // No file to unlink with memory storage
 
         res.json({ status: "success", data });
 

@@ -4,7 +4,7 @@ const multer = require('multer');
 const invoiceController = require('../controllers/invoiceController');
 const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
 
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ storage: multer.memoryStorage() });
 
 router.post('/analyze', ClerkExpressRequireAuth(), upload.single('file'), invoiceController.analyzeInvoice);
 
