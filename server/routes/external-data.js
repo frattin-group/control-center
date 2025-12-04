@@ -21,10 +21,20 @@ router.get('/daily-expenses', async (req, res) => {
         const expenses = await prisma.expenseLineItem.findMany({
             where: {
                 expense: {
-                    date: {
-                        gte: startDate,
-                        lte: endDate
-                    }
+                    OR: [
+                        {
+                            createdAt: {
+                                gte: startDate,
+                                lte: endDate
+                            }
+                        },
+                        {
+                            updatedAt: {
+                                gte: startDate,
+                                lte: endDate
+                            }
+                        }
+                    ]
                 }
             },
             include: {
