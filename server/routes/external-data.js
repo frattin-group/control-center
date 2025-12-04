@@ -17,11 +17,11 @@ const authenticateToken = (req, res, next) => {
     next();
 };
 
-// Apply middleware to all routes in this router
-router.use(authenticateToken);
+// Apply middleware to specific routes
+// router.use(authenticateToken); // REMOVED global application
 
 // GET /api/data/daily-expenses?date=YYYY-MM-DD
-router.get('/daily-expenses', async (req, res) => {
+router.get('/daily-expenses', authenticateToken, async (req, res) => {
     try {
         const { date } = req.query;
 
@@ -89,8 +89,8 @@ router.get('/daily-expenses', async (req, res) => {
     }
 });
 
-// GET /api/data/monthly-employees?month=MM&year=YYYY
-router.get('/monthly-employees', async (req, res) => {
+// GET /api/data/monthly-employees?month=YYYY-MM
+router.get('/monthly-employees', authenticateToken, async (req, res) => {
     try {
         const { month, year } = req.query;
 

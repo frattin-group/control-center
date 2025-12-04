@@ -21,9 +21,10 @@ app.use(express.json());
 
 // Public routes (Webhooks, External Data - protected by own middleware)
 app.use('/api/webhooks', require('./routes/webhooks'));
-app.use('/api/data', require('./routes/external-data'));
+app.use('/api/data', require('./routes/external-data')); // External API (Bearer Token)
 
 // Protected routes (Require Clerk Auth)
+app.use('/api/data', ClerkExpressRequireAuth(), require('./routes/data')); // Internal API (Clerk Auth)
 app.use('/api/invoices', ClerkExpressRequireAuth(), invoiceRoutes);
 app.use('/api/expenses', ClerkExpressRequireAuth(), expenseRoutes);
 app.use('/api/budgets', ClerkExpressRequireAuth(), budgetRoutes);
