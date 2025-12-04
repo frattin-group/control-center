@@ -68,7 +68,8 @@ exports.createUserWithAuth = async (req, res) => {
                 emailAddress: email,
                 publicMetadata: {
                     role,
-                    assignedChannels: assignedChannels || []
+                    assignedChannels: assignedChannels || [],
+                    allowedPages: req.body.allowedPages || []
                 },
                 redirectUrl: 'https://www.thefluxdata.app/sign-in' // Optional: redirect after acceptance
             });

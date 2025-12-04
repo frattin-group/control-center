@@ -28,6 +28,7 @@ export default function App() {
         name: user.fullName,
         email: user.primaryEmailAddress?.emailAddress,
         role: user.publicMetadata?.role || 'collaborator', // Default role
+        allowedPages: user.publicMetadata?.allowedPages || [],
     } : null;
 
     const navigate = (page, filters = {}) => {
@@ -41,8 +42,23 @@ export default function App() {
             collaborator: ['dashboard', 'expenses'],
             admin: ['dashboard', 'expenses', 'operations', 'hr', 'budget', 'settings', 'contracts'],
         };
-        const allowedPages = userPermissions[user.role] || [];
+
+        // Check for granular permissions in metadata
+        let allowedPages = userPermissions[user.role] || [];
+        if (user.publicMetadata?.allowedPages && Array.isArray(user.publicMetadata.allowedPages) && user.publicMetadata.allowedPages.length > 0) {
+            allowedPages = user.publicMetadata.allowedPages;
+        }
+
         if (!allowedPages.includes(page)) {
+            // Redirect to first allowed page or dashboard if nothing matches (though dashboard should always be allowed)
+            const firstAllowed = allowedPages[0] || 'dashboard';
+            if (page !== firstAllowed) {
+                // If we are trying to render a page that is not allowed, render the first allowed page instead
+                // But we need to be careful about infinite loops if we just return the component.
+                // Ideally we should use navigate() but we are inside renderPage.
+                // Let's just return the component for the first allowed page.
+                return renderPage(firstAllowed, user, filters);
+            }
             return <DashboardPage user={user} navigate={navigate} />;
         }
 

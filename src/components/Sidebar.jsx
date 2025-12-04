@@ -97,46 +97,41 @@ const NavItem = ({ icon, label, description, isActive, onClick }) => {
             <button
                 type="button"
                 onClick={onClick}
-                className={`group relative w-full overflow-hidden rounded-2xl border transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
-                    isActive
+                className={`group relative w-full overflow-hidden rounded-2xl border transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${isActive
                         ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-600 text-white border-transparent shadow-[0_15px_40px_-20px_rgba(88,81,219,0.8)]'
                         : 'bg-slate-900/70 border-slate-800 text-slate-300 hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900'
-                }`}
+                    }`}
             >
                 <div className="flex items-center gap-3 p-3.5 lg:p-4">
                     <div
-                        className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-all duration-300 ${
-                            isActive
+                        className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-all duration-300 ${isActive
                                 ? 'border-white/20 bg-white/10 text-white shadow-inner'
                                 : 'border-slate-800 bg-slate-900 text-indigo-300 shadow-sm group-hover:border-indigo-400/60 group-hover:text-indigo-300'
-                        }`}
+                            }`}
                     >
                         <IconComponent className="w-5 h-5" strokeWidth={2.2} />
                     </div>
                     <div className="flex-1 text-left">
                         <p
-                            className={`text-sm font-semibold tracking-tight ${
-                                isActive ? 'text-white' : 'text-slate-100 group-hover:text-white'
-                            }`}
+                            className={`text-sm font-semibold tracking-tight ${isActive ? 'text-white' : 'text-slate-100 group-hover:text-white'
+                                }`}
                         >
                             {label}
                         </p>
                         {description && (
                             <p
-                                className={`mt-0.5 text-xs font-medium transition-colors ${
-                                    isActive ? 'text-indigo-100/80' : 'text-slate-500 group-hover:text-slate-300'
-                                }`}
+                                className={`mt-0.5 text-xs font-medium transition-colors ${isActive ? 'text-indigo-100/80' : 'text-slate-500 group-hover:text-slate-300'
+                                    }`}
                             >
                                 {description}
                             </p>
                         )}
                     </div>
                     <ChevronRight
-                        className={`w-4 h-4 transition-all duration-300 ${
-                            isActive
+                        className={`w-4 h-4 transition-all duration-300 ${isActive
                                 ? 'translate-x-1 text-white drop-shadow'
                                 : 'text-slate-300 opacity-0 group-hover:translate-x-1 group-hover:text-indigo-400 group-hover:opacity-100'
-                        }`}
+                            }`}
                     />
                 </div>
             </button>
@@ -160,9 +155,22 @@ export default function Sidebar({
     };
 
     const userRole = user?.role || 'collaborator';
+    const allowedPages = user?.allowedPages || [];
+
     const visibleSections = NAVIGATION.map((section) => ({
         ...section,
-        items: section.items.filter((item) => item.roles.includes(userRole)),
+        items: section.items.filter((item) => {
+            // 1. Check Role
+            const hasRole = item.roles.includes(userRole);
+            if (!hasRole) return false;
+
+            // 2. Check Granular Permissions (if defined)
+            if (allowedPages.length > 0) {
+                return allowedPages.includes(item.key);
+            }
+
+            return true;
+        }),
     })).filter((section) => section.items.length > 0);
 
     const userInitial =
@@ -179,9 +187,8 @@ export default function Sidebar({
             )}
 
             <aside
-                className={`fixed inset-y-0 left-0 z-50 flex w-[19rem] flex-col gap-6 border-r border-slate-800/80 bg-slate-950/95 px-5 py-6 shadow-[0_35px_90px_-45px_rgba(15,23,42,0.9)] backdrop-blur-2xl transition-transform duration-300 ease-out lg:static lg:z-40 lg:w-72 lg:px-6 lg:py-8 lg:shadow-none ${
-                    isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-                }`}
+                className={`fixed inset-y-0 left-0 z-50 flex w-[19rem] flex-col gap-6 border-r border-slate-800/80 bg-slate-950/95 px-5 py-6 shadow-[0_35px_90px_-45px_rgba(15,23,42,0.9)] backdrop-blur-2xl transition-transform duration-300 ease-out lg:static lg:z-40 lg:w-72 lg:px-6 lg:py-8 lg:shadow-none ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+                    }`}
             >
                 <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm shadow-black/40">
                     <div className="flex items-center gap-3">
