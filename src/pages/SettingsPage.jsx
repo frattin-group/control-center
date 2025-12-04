@@ -355,7 +355,6 @@ export default function SettingsPage({ user }) {
         marketing_channels: { label: 'Canali Marketing', icon: RadioTower, modalType: 'marketing_channel', collectionName: 'marketing_channels' },
         channel_categories: { label: 'Categorie', icon: Link2, modalType: 'category', collectionName: 'channel_categories' },
         users: { label: 'Utenti', icon: Users, modalType: 'user_permissions', addModalType: 'add_user', collectionName: 'users' },
-        security: { label: 'Sicurezza', icon: Shield },
     };
 
     const activeTabInfo = TABS[activeTab];

@@ -16,6 +16,23 @@ export default function MFASetup({ onComplete }) {
         setIsLoading(true);
         try {
             const newTotp = await user.createTOTP();
+
+            // Customize the URI to show "The Flux Data" in Google Authenticator
+            // The URI format is otpauth://totp/Issuer:Account?secret=...&issuer=Issuer
+            let customUri = newTotp.uri;
+            if (customUri) {
+                const accountName = user.primaryEmailAddress?.emailAddress || user.username || 'User';
+                const issuer = 'The Flux Data';
+                const label = `${issuer}:${accountName}`;
+
+                // Reconstruct the URI with the new label and issuer
+                const secretMatch = customUri.match(/secret=([^&]+)/);
+                const secret = secretMatch ? secretMatch[1] : newTotp.secret;
+
+                customUri = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}`;
+                newTotp.uri = customUri;
+            }
+
             setTotp(newTotp);
             setStep('scan');
         } catch (error) {
