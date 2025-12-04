@@ -55,16 +55,38 @@ router.post('/clerk', async (req, res) => {
             const name = `${first_name || ''} ${last_name || ''}`.trim();
             const role = public_metadata?.role || 'collaborator';
 
-            await prisma.user.create({
-                data: {
-                    id: id,
-                    email: email,
-                    name: name || email, // Fallback to email if name is empty
-                    role: role,
-                    status: 'active'
-                }
+            // Check if user already exists by email (legacy user from Firebase)
+            const existingUser = await prisma.user.findUnique({
+                where: { email: email }
             });
-            console.log(`User ${id} created in DB`);
+
+            if (existingUser) {
+                // Update the ID of the existing user to match the new Clerk ID
+                // We use raw query because Prisma doesn't allow updating the ID field directly
+                await prisma.$executeRaw`UPDATE users SET id = ${id} WHERE email = ${email}`;
+
+                // Also update the name and role if needed
+                await prisma.user.update({
+                    where: { id: id },
+                    data: {
+                        name: name || existingUser.name,
+                        role: role || existingUser.role,
+                        status: 'active'
+                    }
+                });
+                console.log(`Legacy user ${email} migrated to Clerk ID ${id}`);
+            } else {
+                await prisma.user.create({
+                    data: {
+                        id: id,
+                        email: email,
+                        name: name || email, // Fallback to email if name is empty
+                        role: role,
+                        status: 'active'
+                    }
+                });
+                console.log(`User ${id} created in DB`);
+            }
         } else if (eventType === 'user.updated') {
             const email = email_addresses[0]?.email_address;
             const name = `${first_name || ''} ${last_name || ''}`.trim();
