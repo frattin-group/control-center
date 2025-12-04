@@ -769,8 +769,8 @@ export default function SettingsPage({ user }) {
                                 <input
                                     type="text"
                                     placeholder="Cerca..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    value={currentSearchTerm}
+                                    onChange={handleSearchChange}
                                     className="h-10 w-64 rounded-xl border-slate-200 bg-white pl-10 text-sm font-medium text-slate-700 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-indigo-500"
                                 />
                             </div>
