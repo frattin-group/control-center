@@ -88,7 +88,7 @@ export default function App() {
     return (
         <>
             <SignedOut>
-                <RedirectToSignIn />
+                <LoginPage />
             </SignedOut>
             <SignedIn>
                 <div className="flex h-screen bg-gray-50 overflow-hidden">
