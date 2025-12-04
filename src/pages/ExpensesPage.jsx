@@ -1004,6 +1004,7 @@ export default function ExpensesPage({
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingExpense, setEditingExpense] = useState(null);
 
+    const { getToken } = useAuth();
     // Stati filtri
     const [searchTerm, setSearchTerm] = useState('');
     const [supplierFilter, setSupplierFilter] = useState([]);
