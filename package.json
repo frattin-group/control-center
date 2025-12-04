@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:all": "vite & node --watch server/index.js",
     "build": "vite build",
-    "postinstall": "cd server && npx prisma generate",
+    "postinstall": "prisma generate --schema=./server/prisma/schema.prisma",
     "lint": "eslint .",
     "preview": "vite preview"
   },

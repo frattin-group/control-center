@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  admin
+  manager
+  collaborator
+}
+
+enum CostDomain {
+  marketing
+  sedi
+  operations // Added based on App.jsx routing
+  hr // Added based on App.jsx routing
+}
+
+model User {
+  id        String   @id // This will be the Clerk ID (or Firebase UID during migration)
+  email     String   @unique
+  name      String?
+  role      Role     @default(collaborator)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  assignedSuppliers SupplierAssignment[]
+
+  @@map("users")
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String
+  vatNumber String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  associatedSectors String[]
+  offeredMarketingChannels String[]
+
+  // Relations
+  expenses  Expense[]
+  contracts Contract[]
+  budgets   Budget[]
+  assignedUsers SupplierAssignment[]
+
+  @@map("suppliers")
+}
+
+// Many-to-many relation between User and Supplier
+model SupplierAssignment {
+  userId     String
+  supplierId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@id([userId, supplierId])
+  @@map("supplier_assignments")
+}
+
+model Sector {
+  id   String @id @default(uuid())
+  name String
+
+  // Relations
+  branches          BranchSector[]
+  expenseLineItems  ExpenseLineItem[]
+  budgetAllocations BudgetAllocation[]
+  sectorBudgets     SectorBudget[]
+  contractLineItems ContractLineItem[]
+  employees         Employee[]
+
+  @@map("sectors")
+}
+
+model MarketingChannel {
+  id         String   @id @default(uuid())
+  name       String
+  categoryId String?
+
+  // Relations
+  expenseLineItems  ExpenseLineItem[]
+  budgetAllocations BudgetAllocation[]
+  contractLineItems ContractLineItem[]
+  category          ChannelCategory?   @relation(fields: [categoryId], references: [id])
+
+  @@map("marketing_channels")
+}
+
+model Branch {
+  id   String @id @default(uuid())
+  name String
+
+  // Relations
+  sectors           BranchSector[]
+  expenseLineItems  ExpenseLineItem[]
+  budgetAllocations BudgetAllocation[]
+  contractLineItems ContractLineItem[]
+  employees         Employee[]
+
+  @@map("branches")
+}
+
+// Many-to-many relation between Branch and Sector
+model BranchSector {
+  branchId String
+  sectorId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sector   Sector @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+
+  @@id([branchId, sectorId])
+  @@map("branch_sectors")
+}
+
+
+
+model Contract {
+  id          String   @id @default(uuid())
+  supplierId  String
+  signingDate DateTime
+  description String?
+  amount      Float?
+  contractPdfUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  expenseLineItems ExpenseLineItem[]
+  plannedLineItems ContractLineItem[]
+
+  @@map("contracts")
+}
+
+model ContractLineItem {
+  id                 String   @id @default(uuid())
+  contractId         String
+  description        String?
+  totalAmount        Float
+  startDate          DateTime
+  endDate            DateTime
+  sectorId           String?
+  marketingChannelId String?
+  branchId           String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  contract         Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  sector           Sector?           @relation(fields: [sectorId], references: [id])
+  marketingChannel MarketingChannel? @relation(fields: [marketingChannelId], references: [id])
+  branch           Branch?           @relation(fields: [branchId], references: [id])
+  expenseLineItems ExpenseLineItem[]
+
+  @@map("contract_line_items")
+}
+
+model Expense {
+  id                    String     @id @default(uuid())
+  supplierId            String
+  date                  DateTime
+  totalAmount           Float
+  description           String?
+  costDomain            CostDomain @default(marketing)
+  isAmortized           Boolean    @default(false)
+  amortizationStartDate DateTime?
+  amortizationEndDate   DateTime?
+  invoicePdfUrl         String?
+  contractPdfUrl        String?
+  relatedContractId     String?
+  requiresContract      Boolean    @default(true)
+  authorId              String?
+  authorName            String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  supplier  Supplier          @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  lineItems ExpenseLineItem[]
+
+  @@map("expenses")
+}
+
+model ExpenseLineItem {
+  id                 String  @id @default(uuid())
+  expenseId          String
+  description        String?
+  amount             Float
+  sectorId           String?
+  marketingChannelId String?
+  branchId           String? // assignmentId in Firestore
+  contractId         String?
+  contractLineItemId String?
+
+  expense          Expense           @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  sector           Sector?           @relation(fields: [sectorId], references: [id])
+  marketingChannel MarketingChannel? @relation(fields: [marketingChannelId], references: [id])
+  branch           Branch?           @relation(fields: [branchId], references: [id])
+  contract         Contract?         @relation(fields: [contractId], references: [id])
+  contractLineItem ContractLineItem? @relation(fields: [contractLineItemId], references: [id])
+
+  @@map("expense_line_items")
+}
+
+model Budget {
+  id         String   @id @default(uuid())
+  supplierId String
+  year       Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  supplier    Supplier           @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  allocations BudgetAllocation[]
+
+  @@unique([supplierId, year])
+  @@map("budgets")
+}
+
+model BudgetAllocation {
+  id                 String  @id @default(uuid())
+  budgetId           String
+  sectorId           String?
+  marketingChannelId String?
+  branchId           String?
+  budgetAmount       Float
+
+  budget           Budget            @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  sector           Sector?           @relation(fields: [sectorId], references: [id])
+  marketingChannel MarketingChannel? @relation(fields: [marketingChannelId], references: [id])
+  branch           Branch?           @relation(fields: [branchId], references: [id])
+
+  @@map("budget_allocations")
+}
+
+model ChannelCategory {
+  id       String             @id @default(uuid())
+  name     String
+  channels MarketingChannel[]
+
+  @@map("channel_categories")
+}
+
+model GeographicArea {
+  id   String @id @default(uuid())
+  name String
+
+  @@map("geographic_areas")
+}
+
+model SectorBudget {
+  id        String   @id @default(uuid())
+  sectorId  String
+  year      Int
+  amount    Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sector    Sector   @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+
+  @@unique([sectorId, year])
+  @@map("sector_budgets")
+}
+
+model Employee {
+  id                 String   @id @default(uuid())
+  name               String
+  role               String?
+  jobTitle           String?
+  department         String?
+  branchId           String?
+  sectorId           String?
+  status             String   @default("active")
+  monthlyCost        Float    @default(0)
+  monthlyCosts       Json?    // For current year detailed monthly costs
+  monthlyCostsByYear Json?    // For historical data
+  employmentType     String?  @default("full_time")
+  defaultYear        String?
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  branch Branch? @relation(fields: [branchId], references: [id])
+  sector Sector? @relation(fields: [sectorId], references: [id])
+
+  @@map("employees")
+}
