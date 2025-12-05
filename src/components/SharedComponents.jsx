@@ -13,6 +13,8 @@ export const MultiSelect = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+    const containerRef = React.useRef(null);
 
     const filteredOptions = useMemo(() =>
         (options || []).filter(opt => opt.name.toLowerCase().includes(searchTerm.toLowerCase())),
@@ -20,8 +22,30 @@ export const MultiSelect = ({
     );
     const selectedCount = useMemo(() => (selected || []).length, [selected]);
 
+    const updatePosition = React.useCallback(() => {
+        if (containerRef.current && isOpen) {
+            const rect = containerRef.current.getBoundingClientRect();
+            setCoords({
+                top: rect.bottom + 4, // 4px gap
+                left: rect.left,
+                width: rect.width
+            });
+        }
+    }, [isOpen]);
+
+    React.useEffect(() => {
+        updatePosition();
+        window.addEventListener('resize', updatePosition);
+        window.addEventListener('scroll', updatePosition, true); // Capture scroll to handle modal scrolling
+
+        return () => {
+            window.removeEventListener('resize', updatePosition);
+            window.removeEventListener('scroll', updatePosition, true);
+        };
+    }, [updatePosition]);
+
     return (
-        <div className="relative">
+        <div className="relative" ref={containerRef}>
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
@@ -39,37 +63,54 @@ export const MultiSelect = ({
                 <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {isOpen && (
-                <div className="absolute z-50 mt-1 w-full bg-white/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-white/40 max-h-60 overflow-hidden">
-                    <div className="p-2 sticky top-0 bg-white/95 backdrop-blur-xl border-b border-slate-200/60">
-                        <input
-                            type="text"
-                            placeholder={searchPlaceholder}
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                        />
-                    </div>
-                    <ul className="overflow-y-auto max-h-48">
-                        {filteredOptions.map(option => {
-                            const isChecked = (selected || []).includes(option.id);
-                            return (
-                                <li
-                                    key={option.id}
-                                    onClick={() => onChange(option.id)}
-                                    className="px-3 py-2.5 hover:bg-indigo-50/60 cursor-pointer flex items-center justify-between transition-colors"
-                                >
-                                    <span className="text-sm font-medium text-slate-800">{option.name}</span>
-                                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'}`}>
-                                        {isChecked && <Check className="w-3.5 h-3.5 text-white" />}
-                                    </div>
+            {isOpen && createPortal(
+                <>
+                    <div className="fixed inset-0 z-[9998]" onClick={() => setIsOpen(false)}></div>
+                    <div
+                        className="fixed z-[9999] bg-white/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-white/40 overflow-hidden flex flex-col"
+                        style={{
+                            top: coords.top,
+                            left: coords.left,
+                            width: coords.width,
+                            maxHeight: '240px'
+                        }}
+                    >
+                        <div className="p-2 sticky top-0 bg-white/95 backdrop-blur-xl border-b border-slate-200/60 shrink-0">
+                            <input
+                                type="text"
+                                placeholder={searchPlaceholder}
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                                autoFocus
+                            />
+                        </div>
+                        <ul className="overflow-y-auto py-1">
+                            {filteredOptions.map(option => {
+                                const isChecked = (selected || []).includes(option.id);
+                                return (
+                                    <li
+                                        key={option.id}
+                                        onClick={() => onChange(option.id)}
+                                        className="px-3 py-2.5 hover:bg-indigo-50/60 cursor-pointer flex items-center justify-between transition-colors"
+                                    >
+                                        <span className="text-sm font-medium text-slate-800">{option.name}</span>
+                                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'}`}>
+                                            {isChecked && <Check className="w-3.5 h-3.5 text-white" />}
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                            {filteredOptions.length === 0 && (
+                                <li className="px-3 py-4 text-center text-sm text-slate-400">
+                                    Nessun risultato
                                 </li>
-                            );
-                        })}
-                    </ul>
-                </div>
+                            )}
+                        </ul>
+                    </div>
+                </>,
+                document.body
             )}
-            {isOpen && <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)}></div>}
         </div>
     );
 };
