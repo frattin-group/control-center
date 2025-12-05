@@ -71,7 +71,7 @@ exports.createUserWithAuth = async (req, res) => {
                     assignedChannels: assignedChannels || [],
                     allowedPages: req.body.allowedPages || []
                 },
-                redirectUrl: 'https://www.thefluxdata.app/sign-in' // Optional: redirect after acceptance
+                redirectUrl: 'https://control-center.frattingroup.it/sign-in' // Redirect after acceptance
             });
         } catch (clerkError) {
             console.error("Clerk invitation error:", clerkError);
