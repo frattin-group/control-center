@@ -9,6 +9,7 @@ import MarketingChannelModal from '../components/MarketingChannelModal';
 import SimpleAddModal from '../components/SimpleAddModal';
 import SectorBudgetModal from '../components/SectorBudgetModal';
 import SettingsListItem from '../components/SettingsListItem';
+import { KpiCard } from '../components/SharedComponents';
 import toast from 'react-hot-toast';
 import { COST_DOMAINS, DEFAULT_COST_DOMAIN } from '../constants/costDomains';
 
@@ -657,121 +658,147 @@ export default function SettingsPage({ user }) {
     ];
 
     return (
-
-        <div className="min-h-screen bg-slate-50/50">
-            {/* Hero Section */}
-            <div className="relative overflow-hidden bg-slate-900 pb-24 pt-10 shadow-xl lg:pb-32 lg:pt-16">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/60 to-slate-900"></div>
-                <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-                        <div className="max-w-2xl">
-                            <div className="flex items-center gap-3 text-indigo-400">
-                                <Settings className="h-6 w-6" />
-                                <span className="text-sm font-bold uppercase tracking-wider">Configurazione</span>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200">
+            <div className="relative p-4 lg:p-8 space-y-6">
+                {/* Hero */}
+                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-2xl border border-white/10 p-6 lg:p-10">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.35),transparent_55%)]" />
+                    <div className="relative flex flex-col gap-6">
+                        <div className="flex flex-wrap items-center gap-4">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-white shadow-lg shadow-indigo-900/30 ring-4 ring-white/20">
+                                <Settings className="w-7 h-7 lg:w-8 lg:h-8" />
                             </div>
-                            <h1 className="mt-2 text-4xl font-black tracking-tight text-white lg:text-5xl">
-                                Impostazioni Piattaforma
-                            </h1>
-                            <p className="mt-4 text-lg text-slate-300">
-                                {heroDescription}
+                            <div>
+                                <p className="text-xs uppercase tracking-[0.4em] text-white/70 font-semibold">Control Room</p>
+                                <h1 className="text-3xl lg:text-4xl xl:text-5xl font-black leading-tight">
+                                    Centro Impostazioni
+                                </h1>
+                            </div>
+                        </div>
+                        <p className="text-sm lg:text-base text-white/85 max-w-3xl">{heroDescription}</p>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.3em] text-white/80">
+                                {activeTabInfo?.label || 'Seleziona un tab'}
+                            </span>
+                            <span className="text-xs font-semibold text-white/80">
+                                Elementi totali: {activeTabCount}
+                            </span>
+                            {canAddOnActiveTab && (
+                                <button
+                                    type="button"
+                                    onClick={handleQuickAdd}
+                                    className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-900/40 backdrop-blur-sm transition-all hover:-translate-y-[1px] hover:bg-white/25"
+                                >
+                                    <PlusCircle className="w-4 h-4" />
+                                    {quickAddLabel}
+                                </button>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {heroHighlights.map((highlight) => {
+                                const Icon = highlight.icon;
+                                return (
+                                    <div
+                                        key={highlight.key}
+                                        className="flex items-start gap-3 rounded-2xl bg-white/12 px-4 py-3 backdrop-blur-sm shadow-[0_25px_60px_-40px_rgba(15,23,42,0.6)]"
+                                    >
+                                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/15 text-white shadow-inner shadow-indigo-900/25">
+                                            <Icon className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-white">{highlight.title}</p>
+                                            <p className="text-xs text-white/75 leading-relaxed">{highlight.description}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stat Overview */}
+                <div className="bg-white/85 backdrop-blur-xl rounded-3xl shadow-xl border border-white/30 p-6">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Panoramica</p>
+                            <h2 className="text-xl lg:text-2xl font-black text-slate-900">Struttura organizzativa</h2>
+                            <p className="mt-1 text-sm font-medium text-slate-600">
+                                Accedi rapidamente alle entità più utilizzate della piattaforma.
                             </p>
                         </div>
-                        {canAddOnActiveTab && (
-                            <button
-                                onClick={handleQuickAdd}
-                                className="group relative inline-flex items-center gap-2 overflow-hidden rounded-2xl bg-white px-6 py-3 text-sm font-bold text-slate-900 shadow-lg transition-all hover:bg-indigo-50 hover:shadow-indigo-500/25 active:scale-95"
-                            >
-                                <Plus className="h-5 w-5 transition-transform group-hover:rotate-90" />
-                                <span>Aggiungi {activeTabInfo?.label?.slice(0, -1) || 'Elemento'}</span>
-                            </button>
-                        )}
+                        <span className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-600">
+                            <Layers className="w-4 h-4" />
+                            Dati aggiornati in tempo reale
+                        </span>
                     </div>
-
-                    {/* Highlights Grid */}
-                    <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {heroHighlights.map((highlight) => (
-                            <div key={highlight.key} className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition-colors hover:bg-white/10">
-                                <div className="flex items-start gap-4">
-                                    <div className="rounded-xl bg-indigo-500/20 p-2.5 text-indigo-300">
-                                        <highlight.icon className="h-6 w-6" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-white">{highlight.title}</h3>
-                                        <p className="mt-1 text-sm text-slate-400">{highlight.description}</p>
-                                    </div>
-                                </div>
-                            </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        {statCards.map((card) => (
+                            <KpiCard
+                                key={card.key}
+                                title={card.title}
+                                value={card.value}
+                                icon={card.icon}
+                                gradient={card.gradient}
+                                subtitle={card.subtitle}
+                                onClick={card.onClick}
+                            />
                         ))}
                     </div>
                 </div>
-            </div>
 
-            <div className="mx-auto -mt-16 max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-                {/* Tabs Navigation */}
-                <div className="relative z-10 mb-8 overflow-x-auto rounded-2xl bg-white/80 p-1.5 shadow-xl shadow-slate-200/50 backdrop-blur-xl ring-1 ring-slate-900/5">
-                    <nav className="flex min-w-max gap-1" aria-label="Tabs">
-                        {Object.entries(TABS).map(([key, tab]) => {
-                            const isActive = activeTab === key;
-                            const count = tabCounts[key] || 0;
-                            return (
-                                <button
-                                    key={key}
-                                    onClick={() => setActiveTab(key)}
-                                    className={`
-                                        group relative flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-bold transition-all
-                                        ${isActive
-                                            ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
-                                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                                        }
-                                    `}
-                                >
-                                    <tab.icon className={`h-4 w-4 ${isActive ? 'text-indigo-300' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                                    <span>{tab.label}</span>
-                                    <span className={`
-                                        ml-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold
-                                        ${isActive
-                                            ? 'bg-white/20 text-white'
-                                            : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
-                                        }
-                                    `}>
-                                        {count}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </nav>
-                </div>
-
-                <div className="min-h-[500px] rounded-3xl border border-white/60 bg-white/80 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-xl ring-1 ring-slate-900/5 lg:p-8">
-                    <div className="mb-8 flex items-center justify-between">
-                        <div>
-                            <h2 className="text-2xl font-black text-slate-900">{activeTabInfo?.label}</h2>
-                            <p className="mt-1 text-sm font-medium text-slate-500">
-                                Gestisci {activeTabInfo?.label?.toLowerCase()} e le loro associazioni
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            {activeTab === 'sector_budgets' && (
-                                <select
-                                    value={budgetYear}
-                                    onChange={(e) => setBudgetYear(parseInt(e.target.value))}
-                                    className="h-10 rounded-xl border-slate-200 bg-white text-sm font-bold text-slate-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                >
-                                    {budgetYearsOptions.map(year => (
-                                        <option key={year} value={year}>{year}</option>
-                                    ))}
-                                </select>
-                            )}
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Cerca..."
-                                    value={currentSearchTerm}
-                                    onChange={handleSearchChange}
-                                    className="h-10 w-64 rounded-xl border-slate-200 bg-white pl-10 text-sm font-medium text-slate-700 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-indigo-500"
-                                />
+                {/* Configuratore */}
+                <div className="rounded-3xl border border-white/30 bg-white/90 backdrop-blur-xl shadow-2xl p-5 lg:p-6 space-y-6">
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Cataloghi configurabili</p>
+                                <h3 className="text-lg lg:text-xl font-black text-slate-900">Seleziona l'area da gestire</h3>
                             </div>
+                            <span className="inline-flex items-center gap-2 rounded-2xl bg-indigo-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
+                                <Target className="w-4 h-4" />
+                                {activeTabInfo?.label || '—'}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                            {Object.entries(TABS).map(([key, { label, icon }]) => (
+                                <TabButton
+                                    key={key}
+                                    tabKey={key}
+                                    label={label}
+                                    icon={icon}
+                                    activeTab={activeTab}
+                                    setActiveTab={setActiveTab}
+                                    count={tabCounts[key]}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="relative flex-1 min-w-[220px]">
+                            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder={`Cerca in ${activeTabInfo?.label?.toLowerCase() || 'questa sezione'}...`}
+                                value={currentSearchTerm}
+                                onChange={handleSearchChange}
+                                className="h-12 w-full rounded-2xl border border-slate-200 bg-white/90 pl-12 pr-4 text-sm font-medium text-slate-700 shadow-inner transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                            />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span className="inline-flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                                <span className="uppercase tracking-[0.22em] text-[10px] text-slate-400">Disponibili</span>
+                                <span className="text-sm font-bold text-slate-900">{activeTabCount}</span>
+                            </span>
+                            {canAddOnActiveTab && (
+                                <button
+                                    type="button"
+                                    onClick={handleQuickAdd}
+                                    className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 text-sm font-semibold text-white shadow-lg shadow-slate-900/30 transition-all hover:-translate-y-[1px] hover:bg-slate-800"
+                                >
+                                    <PlusCircle className="w-5 h-5" />
+                                    {quickAddLabel}
+                                </button>
+                            )}
                         </div>
                     </div>
                     {renderTabContent()}
@@ -808,13 +835,14 @@ export default function SettingsPage({ user }) {
                             ]}
                         />
                     )}
-                    {(modalState.type === 'sector' || modalState.type === 'category') && (
+                    {modalState.type === 'sector' && (
                         <SimpleAddModal
                             isOpen={modalState.isOpen}
                             onClose={handleCloseModal}
-                            onSave={(data) => handleSaveSimple(modalState.type === 'sector' ? 'sectors' : 'channel_categories', data)}
+                            onSave={(data) => handleSaveSimple('sectors', data)}
                             initialData={modalState.data}
-                            type={modalState.type}
+                            title={modalState.data ? 'Modifica Settore' : 'Nuovo Settore'}
+                            itemLabel="Nome Settore"
                         />
                     )}
                     {modalState.type === 'marketing_channel' && (
@@ -826,12 +854,23 @@ export default function SettingsPage({ user }) {
                             categories={channelCategories}
                         />
                     )}
+                    {modalState.type === 'category' && (
+                        <SimpleAddModal
+                            isOpen={modalState.isOpen}
+                            onClose={handleCloseModal}
+                            onSave={(data) => handleSaveSimple('channel_categories', data)}
+                            initialData={modalState.data}
+                            title={modalState.data ? 'Modifica Categoria' : 'Nuova Categoria'}
+                            itemLabel="Nome Categoria"
+                        />
+                    )}
                     {modalState.type === 'user_permissions' && (
                         <UserPermissionsModal
                             isOpen={modalState.isOpen}
                             onClose={handleCloseModal}
-                            onSave={handleSaveUserRole}
-                            userData={modalState.data}
+                            user={modalState.data}
+                            onSave={(data) => handleSaveUserRole(modalState.data.id, data)}
+                            marketingChannels={marketingChannels}
                         />
                     )}
                     {modalState.type === 'add_user' && (
@@ -839,23 +878,26 @@ export default function SettingsPage({ user }) {
                             isOpen={modalState.isOpen}
                             onClose={handleCloseModal}
                             onSave={handleCreateUser}
-                            suppliers={suppliers}
+                            marketingChannels={marketingChannels}
+                        />
+                    )}
+                    {editingSectorBudget && (
+                        <SectorBudgetModal
+                            isOpen={!!editingSectorBudget}
+                            onClose={() => setEditingSectorBudget(null)}
+                            sector={editingSectorBudget}
+                            year={budgetYear}
+                            onSave={handleSaveSectorBudget}
                         />
                     )}
                 </>
             )}
 
-            {editingSectorBudget && (
-                <SectorBudgetModal
-                    isOpen={!!editingSectorBudget}
-                    onClose={() => setEditingSectorBudget(null)}
-                    onSave={handleSaveSectorBudget}
-                    sector={editingSectorBudget}
-                    year={budgetYear}
-                />
+            {activeTab === 'security' && (
+                <div className="flex justify-center p-6">
+                    <UserProfile />
+                </div>
             )}
-
-
         </div>
     );
 }
