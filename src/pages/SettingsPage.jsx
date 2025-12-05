@@ -9,7 +9,6 @@ import MarketingChannelModal from '../components/MarketingChannelModal';
 import SimpleAddModal from '../components/SimpleAddModal';
 import SectorBudgetModal from '../components/SectorBudgetModal';
 import SettingsListItem from '../components/SettingsListItem';
-import { KpiCard } from '../components/SharedComponents';
 import toast from 'react-hot-toast';
 import { COST_DOMAINS, DEFAULT_COST_DOMAIN } from '../constants/costDomains';
 
@@ -857,11 +856,7 @@ export default function SettingsPage({ user }) {
                 />
             )}
 
-            {activeTab === 'security' && (
-                <div className="flex justify-center p-6">
-                    <UserProfile />
-                </div>
-            )}
+
         </div>
     );
 }
