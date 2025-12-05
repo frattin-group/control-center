@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { Users, Layers, Building2, RadioTower, Link2, PlusCircle, Search, ShoppingCart, Car, Sailboat, Caravan, DollarSign, Settings, Target, AlertCircle, CheckCircle, Shield } from 'lucide-react';
+import { Users, Layers, Building2, RadioTower, Link2, PlusCircle, Search, ShoppingCart, Car, Sailboat, Caravan, DollarSign, Settings, Target, AlertCircle, CheckCircle, Shield, Plus } from 'lucide-react';
 import { UserProfile } from '@clerk/clerk-react';
 import AssociationModal from '../components/AssociationModal';
 import UserPermissionsModal from '../components/UserPermissionsModal';
