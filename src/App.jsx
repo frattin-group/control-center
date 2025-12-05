@@ -94,10 +94,10 @@ export default function App() {
         );
     }
 
-    // Force MFA Setup with Custom UI
-    if (isSignedIn && user && !user.twoFactorEnabled) {
-        return <MFASetup />;
-    }
+    // Forced MFA Setup removed to allow Email Code or optional MFA
+    // if (isSignedIn && user && !user.twoFactorEnabled) {
+    //     return <MFASetup />;
+    // }
 
 
 
