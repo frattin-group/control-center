@@ -661,7 +661,6 @@ export default function SettingsPage({ user }) {
         <div className="min-h-screen bg-slate-50/50">
             {/* Hero Section */}
             <div className="relative overflow-hidden bg-slate-900 pb-24 pt-10 shadow-xl lg:pb-32 lg:pt-16">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/60 to-slate-900"></div>
                 <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
